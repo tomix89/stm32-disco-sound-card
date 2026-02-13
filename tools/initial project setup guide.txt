@@ -33,3 +33,19 @@ set up I2C1
 used GPIO shall be the correct one already defided by the board for both I2C1 and I2S3
 
 generate the project as STM Ide project and open it
+
+------------------------- Setup USB ----------------------------------------
+
+i gained all my knowledge based on these sources:
+https://github.com/hathach/tinyusb/discussions/633#discussioncomment-342237
+https://github.com/hathach/tinyusb/issues/2236
+https://ejaaskel.dev/making-usb-device-with-stm32-tinyusb/
+https://www.youtube.com/watch?v=ZywYPsIohcw
+https://www.youtube.com/watch?v=XgsnJdY8LsY
+
+
+download/checkout the tiny USB library
+https://github.com/hathach/tinyusb
+
+
+create a sub folder in the main project folder "tinyusb-src" and copy everithyng from tinyUSB/src
