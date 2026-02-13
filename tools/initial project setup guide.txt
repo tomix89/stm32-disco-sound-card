@@ -53,3 +53,11 @@ right click on this folder inside STM32 IDE
 right click - add remove include paths (add to both debug + release)
 now open the project properties go to c/C++ general -> paths and symbols -> source location
 and add the "tinyusb-src"
+
+we will use the tinyusb\examples\device\uac2_speaker_fb example
+from uac2_speaker_fb\src
+add tusb_config.h, usb_descriptors.h, common_types.h to your "Core/Inc 
+add usb_descriptors.c, to your "Core/Src 
+
+create a folder in Core/Inc/bsp and copy tinyusb\hw\bsp\board_api.h
+so we are compatible with the tinyUSB folder structure
