@@ -22,6 +22,7 @@
 #include "stm32f4xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "tusb.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -219,7 +220,9 @@ void DMA1_Stream5_IRQHandler(void)
 void OTG_FS_IRQHandler(void)
 {
   /* USER CODE BEGIN OTG_FS_IRQn 0 */
-
+	tusb_int_handler(BOARD_TUD_RHPORT, true);
+	return;
+	// we handle the interrupt in tinyUSB no need for HAL callback
   /* USER CODE END OTG_FS_IRQn 0 */
   HAL_PCD_IRQHandler(&hpcd_USB_OTG_FS);
   /* USER CODE BEGIN OTG_FS_IRQn 1 */
