@@ -9,3 +9,6 @@ https://github.com/hathach/tinyusb
 Big thank you for the developers! It is a lot better and in depth  impelemntation then the middlke ware from STM itself.
 
 The project is made by the STM Cube MX, and programmed in their STM32CubeIDE 2.0.0
+
+there is a hand written tool to calculate the best (exact) configuration for the I2S PLL, as STM cube seemed to not support this
+tools\i2s-clock-calc.py

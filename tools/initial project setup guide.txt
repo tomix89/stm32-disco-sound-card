@@ -49,3 +49,7 @@ https://github.com/hathach/tinyusb
 
 
 create a sub folder in the main project folder "tinyusb-src" and copy everithyng from tinyUSB/src
+right click on this folder inside STM32 IDE 
+right click - add remove include paths (add to both debug + release)
+now open the project properties go to c/C++ general -> paths and symbols -> source location
+and add the "tinyusb-src"
