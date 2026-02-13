@@ -1,0 +1,35 @@
+for the stm32F411 discovery board
+
+
+open STM Cube, select the board, select not to initialize all periphreals.
+enable USB device only mode 
+enable USB global interrupt
+
+
+set the main clock in System Core -> RCC to HSE -> Crystal/ ceramic resonator
+in the clock konfig panel select the hse form the clock path
+set main pll M=4 N=96 P=2 Q=4 so we have 96MHz main clock and 48MHz also
+the PLL values were calculated with i2s-clock-calc.py
+
+------------------------- setup the audio codeck cs43l22
+
+set up I2S3
+master mode half duplex
+DON'T forget to enable master clock out!
+
+I2S philips
+16b/16b 48KHz
+for that set in clock (calculated by my i2s-clock-calc.py)
+8MHZ main crystal -> PPL M=5, N=192, R=5, therefeore the I2S clock is 61.44MHz (it is exactly 5x 12.288MHz)
+eanble DMA1 stream5 global interrup
+DMA is circular increment only on memory
+Data width: Half word
+ - FiFo is optional (could help with possible cracks) - if more DMA channels are used it is not guaranteed to get data, so use a small FiFi to compensate for that, therefore DMA will transfer 4/8 samples in one go instead of 1-1 all the time
+
+
+set up I2C1
+100Khz 7bit
+
+used GPIO shall be the correct one already defided by the board for both I2C1 and I2S3
+
+generate the project as STM Ide project and open it

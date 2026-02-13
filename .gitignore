@@ -1,3 +1,12 @@
+# Build output
+project/Debug/
+project/Release/
+
+# CubeIDE metadata
+project/.settings/
+project/.metadata/
+project/*.launch
+
 # Prerequisites
 *.d
 
@@ -29,12 +38,12 @@
 *.dylib
 
 # Executables
-*.exe
+*.elf
+*.bin
 *.out
 *.app
-*.i*86
-*.x86_64
 *.hex
+*.map
 
 # Debug files
 *.dSYM/
