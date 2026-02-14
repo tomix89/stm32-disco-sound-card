@@ -42,8 +42,9 @@ static I2S_HandleTypeDef *hi2s;
 #define MASTER_MIN_VOLUME_DB -102
 
 #define OUTPUT_DEVICE_HEADPHONE   0xAF
+#define OUTPUT_DEVICE_OFF         0xFF
 
-uint8_t i2s_stream_state = I2S_AUDIO_STOPPED;
+static uint8_t i2s_stream_state = I2S_AUDIO_STOPPED;
 
 typedef enum {
 	SEND_2ND_HALF_FILL_1ST = 1,
@@ -60,6 +61,8 @@ BuffStatus buffStatus = SEND_1ST_HALF_FILL_2ND;
 
 // this is the actual DMA buffer
 uint16_t i2s_audio_buffer[TOTAL_AUDIO_SAMPLES];
+
+static uint8_t isFirst = 1;
 
 //-------------------------------------------------------------------------------------------------------
 //---------------------------- low level I2C access -----------------------------------------------------
@@ -138,19 +141,26 @@ int audio_set_master_volume_db(int8_t db) {
 void audio_play() {
 	i2s_stream_state = I2S_AUDIO_STREAMING;
 
-	HAL_I2S_Transmit_DMA(hi2s, i2s_audio_buffer, TOTAL_AUDIO_SAMPLES);
+	if (isFirst) {
+		isFirst = 0;
+		HAL_I2S_Transmit_DMA(hi2s, i2s_audio_buffer, TOTAL_AUDIO_SAMPLES);
+	}
 	audio_set_master_volume_db(-10);
-
 }
 
 void audio_stop() {
 	i2s_stream_state = I2S_AUDIO_STOPPED;
 
 	audio_set_master_volume_db(MASTER_MIN_VOLUME_DB);
-	HAL_I2S_DMAStop(hi2s);
+
+	// we cant's stop the DMA immediately, because CS43L22
+	// needs MCLK and LRCLK to set the volume/mute (it has some ramping)
+	// check 4.10 Recommended Power-Down Sequence of the CS43L22 data sheet
+	// for now it states that a fully powered peripheral consumes 25mW
+	// HAL_I2S_DMAStop(hi2s);
 }
 
-I2sAudioState get_audio_state() {
+inline I2sAudioState get_audio_state() {
 	return i2s_stream_state;
 }
 
