@@ -35,6 +35,7 @@ SOFTWARE.
 #include "tusb.h"
 #include "common_types.h"
 #include "usb_handler.h"
+#include "CS43L22_driver.h"
 
 /* USER CODE END Includes */
 
@@ -134,8 +135,9 @@ int main(void)
       .role = TUSB_ROLE_DEVICE,
       .speed = TUSB_SPEED_AUTO};
   tusb_init(BOARD_TUD_RHPORT, &dev_init);
-  TU_LOG1("Speaker running\r\n");
+  TU_LOG1("USB running\r\n");
 
+  audio_init(&hi2c1);
 
   /* USER CODE END 2 */
 
