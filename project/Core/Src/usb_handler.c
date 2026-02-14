@@ -33,6 +33,7 @@
 #include "usb_handler.h"
 
 #include "main.h"
+#include "CS43L22_driver.h"
 
 //--------------------------------------------------------------------+
 // MACRO CONSTANT TYPEDEF PROTOTYPES
@@ -51,21 +52,6 @@ enum {
   BLINK_SUSPENDED = 2500,
 };
 
-enum {
-  VOLUME_CTRL_0_DB = 0,
-  VOLUME_CTRL_10_DB = 2560,
-  VOLUME_CTRL_20_DB = 5120,
-  VOLUME_CTRL_30_DB = 7680,
-  VOLUME_CTRL_40_DB = 10240,
-  VOLUME_CTRL_50_DB = 12800,
-  VOLUME_CTRL_60_DB = 15360,
-  VOLUME_CTRL_70_DB = 17920,
-  VOLUME_CTRL_80_DB = 20480,
-  VOLUME_CTRL_90_DB = 23040,
-  VOLUME_CTRL_100_DB = 25600,
-  VOLUME_CTRL_SILENCE = 0x8000,
-};
-
 static uint32_t blink_interval_ms = BLINK_NOT_MOUNTED;
 
 // Audio controls
@@ -73,9 +59,6 @@ static uint32_t blink_interval_ms = BLINK_NOT_MOUNTED;
 uint8_t mute[CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_RX + 1];   // +1 for master channel 0
 int16_t volume[CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_RX + 1];// +1 for master channel 0
 uint32_t current_sample_rate = 44100;
-
-// Buffer for speaker data
-uint16_t i2s_dummy_buffer[CFG_TUD_AUDIO_FUNC_1_EP_OUT_SW_BUF_SZ / 2];
 
 
 #if CFG_AUDIO_DEBUG
@@ -561,22 +544,23 @@ bool tud_audio_rx_done_isr(uint8_t rhport, uint16_t n_bytes_received, uint8_t fu
 void audio_task(void) {
   static uint32_t start_ms = 0;
   uint32_t curr_ms = HAL_GetTick();
-  if (start_ms == curr_ms) return;// not enough time
+  if (start_ms == curr_ms) return; // not enough time
   start_ms = curr_ms;
 
   uint16_t length = (uint16_t) (current_sample_rate / 1000 * CFG_TUD_AUDIO_FUNC_1_N_BYTES_PER_SAMPLE_RX * CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_RX);
+  uint16_t available = tud_audio_available();
 
-  if (current_sample_rate == 44100 && (curr_ms % 10 == 0)) {
-    // Take one more sample every 10 cycles, to have a average reading speed of 44.1
-    // This correction is not needed in real world cases
-    length += CFG_TUD_AUDIO_FUNC_1_N_BYTES_PER_SAMPLE_RX * CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_RX;
-  } else if (current_sample_rate == 88200 && (curr_ms % 5 == 0)) {
-    // Take one more sample every 5 cycles, to have a average reading speed of 88.2
-    // This correction is not needed in real world cases
-    length += CFG_TUD_AUDIO_FUNC_1_N_BYTES_PER_SAMPLE_RX * CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_RX;
+  if (blink_interval_ms == BLINK_STREAMING) {
+	  // start audio only when the stream is active
+	  if ((available > 3*length) && (get_audio_state() == I2S_AUDIO_STOPPED)) {
+		  audio_play();
+	  }
   }
 
-  tud_audio_read(i2s_dummy_buffer, length);
+  // stop when data actually stop
+  if ((available < length) && (get_audio_state() == I2S_AUDIO_STREAMING)) {
+	  audio_stop();
+  }
 }
 
 //--------------------------------------------------------------------+

@@ -137,7 +137,7 @@ int main(void)
   tusb_init(BOARD_TUD_RHPORT, &dev_init);
   TU_LOG1("USB running\r\n");
 
-  audio_init(&hi2c1);
+  audio_init(&hi2c1, &hi2s3);
 
   /* USER CODE END 2 */
 

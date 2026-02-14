@@ -28,10 +28,12 @@ SOFTWARE.
 #include "CS43L22_driver.h"
 #include "stm32f4xx_hal.h"
 #include "main.h"
+#include "tusb.h"
 
 #define CODEC_I2C_ADDR 0x94
 
 static I2C_HandleTypeDef *hi2c;
+static I2S_HandleTypeDef *hi2s;
 
 #define MAX(a,b) ((a) > (b) ? (a) : (b))
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
@@ -40,6 +42,24 @@ static I2C_HandleTypeDef *hi2c;
 #define MASTER_MIN_VOLUME_DB -102
 
 #define OUTPUT_DEVICE_HEADPHONE   0xAF
+
+uint8_t i2s_stream_state = I2S_AUDIO_STOPPED;
+
+typedef enum {
+	SEND_2ND_HALF_FILL_1ST = 1,
+	SEND_1ST_HALF_FILL_2ND = 2
+} BuffStatus;
+BuffStatus buffStatus = SEND_1ST_HALF_FILL_2ND;
+
+#define SAMPLING_RATE	48000
+// data comes each 1ms -> at 48KHz it will be 48 samples per channel
+#define SAMP_PER_CHANNEL	   48
+#define SAMP_ALL_CHANNELS      2 * SAMP_PER_CHANNEL // we have 2 channels
+#define TOTAL_AUDIO_SAMPLES    2 * SAMP_ALL_CHANNELS  // we have circular double buffering
+// Note: this is uint_16 sample size! byte size is 2x
+
+// this is the actual DMA buffer
+uint16_t i2s_audio_buffer[TOTAL_AUDIO_SAMPLES];
 
 //-------------------------------------------------------------------------------------------------------
 //---------------------------- low level I2C access -----------------------------------------------------
@@ -64,12 +84,13 @@ HAL_StatusTypeDef codec_i2c_read_reg(uint8_t addr, uint8_t *val) {
 
 
 //-------------------------------------------------------------------------------------------------------
-//---------------------------- low level I2C access -----------------------------------------------------
+//---------------------------- middle level control -----------------------------------------------------
 //-------------------------------------------------------------------------------------------------------
 
-int audio_init(void *i2c) {
+int audio_init(void *i2c, void *i2s) {
 	uint8_t success = 0;
 	hi2c = i2c;
+	hi2s = i2s;
 
 	HAL_GPIO_WritePin(Audio_RST_GPIO_Port, Audio_RST_Pin, GPIO_PIN_SET);
 	HAL_Delay(100);
@@ -100,6 +121,7 @@ int audio_set_master_volume_db(int8_t db) {
   db = MIN(db, MASTER_MAX_VOLUME_DB);
   db = MAX(db, MASTER_MIN_VOLUME_DB);
 
+  // CS43L22 has a 0.5db resolution
   uint8_t value = 2*db;
   uint8_t success = 0;
   success += codec_i2c_write_reg(CS43L22_REG_MASTER_A_VOL, value);
@@ -109,9 +131,50 @@ int audio_set_master_volume_db(int8_t db) {
   	return success != 0;
 }
 
-int audio_set_master_volume_pct(uint8_t percent) {
-  percent = MIN(percent, 100);
+//-------------------------------------------------------------------------------------------------------
+//---------------------------- high level control -----------------------------------------------------
+//-------------------------------------------------------------------------------------------------------
 
-  int8_t db = MASTER_MIN_VOLUME_DB + (percent * MASTER_MAX_VOLUME_DB) / 100;
-  return audio_set_master_volume_db(db) != 0;
+void audio_play() {
+	i2s_stream_state = I2S_AUDIO_STREAMING;
+
+	HAL_I2S_Transmit_DMA(hi2s, i2s_audio_buffer, TOTAL_AUDIO_SAMPLES);
+	audio_set_master_volume_db(-10);
+
 }
+
+void audio_stop() {
+	i2s_stream_state = I2S_AUDIO_STOPPED;
+
+	audio_set_master_volume_db(MASTER_MIN_VOLUME_DB);
+	HAL_I2S_DMAStop(hi2s);
+}
+
+I2sAudioState get_audio_state() {
+	return i2s_stream_state;
+}
+
+//-------------------------------------------------------------------------------------------------------
+//---------------------------- I2S DMA callbacks -----------------------------------------------------
+//-------------------------------------------------------------------------------------------------------
+
+void loadMore() {
+    // add new stuff when available
+	const uint16_t bytesToRead = SAMP_ALL_CHANNELS * 2;
+    const uint16_t I2S_BUFF_OFFS = buffStatus == SEND_2ND_HALF_FILL_1ST ? 0 : SAMP_ALL_CHANNELS;
+
+	// this reads in bytes
+	tud_audio_read(&i2s_audio_buffer[I2S_BUFF_OFFS], bytesToRead);
+}
+
+void HAL_I2S_TxHalfCpltCallback(I2S_HandleTypeDef *hi2s) {
+	buffStatus = SEND_2ND_HALF_FILL_1ST;
+    loadMore();
+}
+
+void HAL_I2S_TxCpltCallback(I2S_HandleTypeDef *hi2s) {
+	buffStatus = SEND_1ST_HALF_FILL_2ND;
+    loadMore();
+}
+
+

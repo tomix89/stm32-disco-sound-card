@@ -28,6 +28,11 @@ SOFTWARE.
 
 #include <stdint.h>
 
+typedef enum {
+  I2S_AUDIO_STOPPED = 0,
+  I2S_AUDIO_STREAMING = 1,
+}I2sAudioState;
+
 // CS43l22 Registers
 // from https://github.com/STMicroelectronics/stm32-cs43l22
 #define   CS43L22_REG_ID                  0x01
@@ -69,6 +74,10 @@ SOFTWARE.
 #define   CS43L22_REG_THERMAL_FOLDBACK    0x33
 #define   CS43L22_REG_CHARGE_PUMP_FREQ    0x34
 
-int audio_init(void *i2c);
+int audio_init(void *i2c, void *i2s);
+
+void audio_play();
+void audio_stop();
+I2sAudioState get_audio_state();
+
 int audio_set_master_volume_db(int8_t db);
-int audio_set_master_volume_pct(uint8_t percent);
