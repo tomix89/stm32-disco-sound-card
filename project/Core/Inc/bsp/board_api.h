@@ -79,7 +79,7 @@ void board_init_after_tusb(void);
 void board_reset_to_bootloader(void);
 
 // Turn LED on or off
-static inline void board_led_write(bool state);
+extern void board_led_write(bool state);
 
 // Control led pattern using phase duration in ms.
 // For each phase, LED is toggle then repeated, board_led_task() is required to be called
