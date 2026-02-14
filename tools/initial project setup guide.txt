@@ -110,3 +110,12 @@ return;
 add this as the first lines, so the STM based callback won't be called
 
 
+
+now include the stuff form the \tinyusb\examples\device\uac2_speaker_fb\src\main.c to your project
+
+structs/enums
+the init sequence
+the main loop stuff 
+
+some of it needs to go to the main.c but the majority can be in a separtate file 
+Since the code we are adding is large enough i add it as a separate file

@@ -79,7 +79,7 @@ void board_init_after_tusb(void);
 void board_reset_to_bootloader(void);
 
 // Turn LED on or off
-void board_led_write(bool state);
+static inline void board_led_write(bool state);
 
 // Control led pattern using phase duration in ms.
 // For each phase, LED is toggle then repeated, board_led_task() is required to be called
@@ -99,8 +99,6 @@ int board_uart_read(uint8_t *buf, int len);
 int board_uart_write(void const *buf, int len);
 
 #if CFG_TUSB_OS == OPT_OS_NONE
-// Get current milliseconds, must be implemented when no RTOS is used
-uint32_t board_millis(void);
 
 #elif CFG_TUSB_OS == OPT_OS_FREERTOS
 static inline uint32_t board_millis(void) {
@@ -171,21 +169,6 @@ static inline size_t board_usb_get_serial(uint16_t desc_str1[], size_t max_chars
   }
 
   return 2 * uid_len;
-}
-
-// TODO remove
-static inline void board_delay(uint32_t ms) {
-  uint32_t start_ms = board_millis();
-  while ( board_millis() - start_ms < ms ) {
-    // take chance to run usb background
-    #if CFG_TUD_ENABLED
-    tud_task();
-    #endif
-
-    #if CFG_TUH_ENABLED
-    tuh_task();
-    #endif
-  }
 }
 
 // stdio getchar() is blocking, this is non-blocking version
