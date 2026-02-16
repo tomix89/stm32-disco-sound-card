@@ -52,7 +52,7 @@ typedef enum {
 } BuffStatus;
 BuffStatus buffStatus = SEND_1ST_HALF_FILL_2ND;
 
-#define SAMPLING_RATE	48000
+
 // data comes each 1ms -> at 48KHz it will be 48 samples per channel
 #define SAMP_PER_CHANNEL	   48
 #define SAMP_ALL_CHANNELS      2 * SAMP_PER_CHANNEL // we have 2 channels

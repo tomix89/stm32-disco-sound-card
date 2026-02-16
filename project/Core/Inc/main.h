@@ -41,7 +41,7 @@ extern "C" {
 
 /* Exported constants --------------------------------------------------------*/
 /* USER CODE BEGIN EC */
-
+#define AUDIO_SAMPLING_RATE    48000
 /* USER CODE END EC */
 
 /* Exported macro ------------------------------------------------------------*/

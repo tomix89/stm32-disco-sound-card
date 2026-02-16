@@ -418,20 +418,46 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-
+// use only for the Error_Handler() !!!
+void delay(volatile uint32_t t) {
+	while(t--) {
+		__asm__("nop");
+	}
+}
 /* USER CODE END 4 */
 
 /**
   * @brief  This function is executed in case of error occurrence.
   * @retval None
   */
-void Error_Handler(void)
-{
+void Error_Handler(void) {
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */
   __disable_irq();
-  while (1)
-  {
+
+  // LD3_Pin = Orange LED,
+  // LD4_Pin = Green LED,
+  // LD5_Pin = Red LED
+  // LD6_Pin = Blue LED
+  HAL_GPIO_WritePin(GPIOD, LD3_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOD, LD4_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOD, LD6_Pin, GPIO_PIN_RESET);
+
+  // gives a reasonable blink time in both DEBUG and RELEASE
+#ifdef DEBUG
+  uint32_t blink_amount = HAL_RCC_GetHCLKFreq() / 10;
+#else
+  uint32_t blink_amount = HAL_RCC_GetHCLKFreq() / 6;
+#endif
+
+
+  // can't use HAL_Delay(Delay) because we just disabled the interrupts
+  while (1) {
+	// LD5_Pin = Red LED
+	HAL_GPIO_WritePin(GPIOD, LD5_Pin, GPIO_PIN_SET);
+	delay(blink_amount);
+	HAL_GPIO_WritePin(GPIOD, LD5_Pin, GPIO_PIN_RESET);
+	delay(blink_amount);
   }
   /* USER CODE END Error_Handler_Debug */
 }

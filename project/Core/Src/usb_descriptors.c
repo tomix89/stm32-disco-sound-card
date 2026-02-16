@@ -129,17 +129,17 @@ uint8_t const * tud_hid_descriptor_report_cb(uint8_t itf) {
 #endif
 
 #if CFG_AUDIO_DEBUG
-  #define CONFIG_UAC1_TOTAL_LEN    	(TUD_CONFIG_DESC_LEN + TUD_AUDIO10_SPEAKER_STEREO_FB_DESC_LEN(2) + TUD_HID_DESC_LEN)
+  #define CONFIG_UAC1_TOTAL_LEN    	(TUD_CONFIG_DESC_LEN + TUD_AUDIO10_SPEAKER_STEREO_FB_DESC_LEN(1) + TUD_HID_DESC_LEN)
 #else
-  #define CONFIG_UAC1_TOTAL_LEN    	(TUD_CONFIG_DESC_LEN + TUD_AUDIO10_SPEAKER_STEREO_FB_DESC_LEN(2))
+  #define CONFIG_UAC1_TOTAL_LEN    	(TUD_CONFIG_DESC_LEN + TUD_AUDIO10_SPEAKER_STEREO_FB_DESC_LEN(1))
 #endif
 
 uint8_t const desc_uac1_configuration[] = {
   // Config number, interface count, string index, total length, attribute, power in mA
-  TUD_CONFIG_DESCRIPTOR(1, ITF_NUM_TOTAL, 0, CONFIG_UAC1_TOTAL_LEN, 0x00, 100),
+  TUD_CONFIG_DESCRIPTOR(1, ITF_NUM_TOTAL, 0, CONFIG_UAC1_TOTAL_LEN, 0x00, 200),
 
-  // Interface number, string index, byte per sample, bit per sample, EP Out, EP size, EP feedback, sample rates (44.1kHz, 48kHz)
-  TUD_AUDIO10_SPEAKER_STEREO_FB_DESCRIPTOR(ITF_NUM_AUDIO_CONTROL, 5, CFG_TUD_AUDIO_FUNC_1_N_BYTES_PER_SAMPLE_RX, CFG_TUD_AUDIO_FUNC_1_RESOLUTION_RX, EPNUM_AUDIO, CFG_TUD_AUDIO_FUNC_1_EP_OUT_SZ_FS, EPNUM_AUDIO_FB | 0x80, 44100, 48000),
+  // Interface number, string index, byte per sample, bit per sample, EP Out, EP size, EP feedback, sample rates (48kHz)
+  TUD_AUDIO10_SPEAKER_STEREO_FB_DESCRIPTOR(ITF_NUM_AUDIO_CONTROL, 5, CFG_TUD_AUDIO_FUNC_1_N_BYTES_PER_SAMPLE_RX, CFG_TUD_AUDIO_FUNC_1_RESOLUTION_RX, EPNUM_AUDIO, CFG_TUD_AUDIO_FUNC_1_EP_OUT_SZ_FS, EPNUM_AUDIO_FB | 0x80, 48000),
 
 #if CFG_AUDIO_DEBUG
   // Interface number, string index, protocol, report descriptor len, EP In address, size & polling interval

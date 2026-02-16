@@ -54,11 +54,12 @@ enum {
 
 static uint32_t blink_interval_ms = BLINK_NOT_MOUNTED;
 
+#define AUDIO_PACKET_LEN    (AUDIO_SAMPLING_RATE / 1000 * CFG_TUD_AUDIO_FUNC_1_N_BYTES_PER_SAMPLE_RX * CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_RX)
+
 // Audio controls
 // Current states
 uint8_t mute[CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_RX + 1];   // +1 for master channel 0
 int16_t volume[CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_RX + 1];// +1 for master channel 0
-uint32_t current_sample_rate = 44100;
 
 
 #if CFG_AUDIO_DEBUG
@@ -112,10 +113,14 @@ static bool audio10_set_req_ep(tusb_control_request_t const *p_request, uint8_t 
         // Request uses 3 bytes
         TU_VERIFY(p_request->wLength == 3);
 
-        current_sample_rate = tu_unaligned_read32(pBuff) & 0x00FFFFFF;
+        uint32_t current_sample_rate = tu_unaligned_read32(pBuff) & 0x00FFFFFF;
+
+        if (current_sample_rate != AUDIO_SAMPLING_RATE) {
+        	TU_LOG2("Setting sample rate %lu is not supported\n", current_sample_rate);
+        	Error_Handler();
+        }
 
         TU_LOG2("EP set current freq: %" PRIu32 "\r\n", current_sample_rate);
-
         return true;
       }
       break;
@@ -138,9 +143,9 @@ static bool audio10_get_req_ep(uint8_t rhport, tusb_control_request_t const *p_r
         TU_LOG2("EP get current freq\r\n");
 
         uint8_t freq[3];
-        freq[0] = (uint8_t) (current_sample_rate & 0xFF);
-        freq[1] = (uint8_t) ((current_sample_rate >> 8) & 0xFF);
-        freq[2] = (uint8_t) ((current_sample_rate >> 16) & 0xFF);
+        freq[0] = (uint8_t) (AUDIO_SAMPLING_RATE & 0xFF);
+        freq[1] = (uint8_t) ((AUDIO_SAMPLING_RATE >> 8) & 0xFF);
+        freq[2] = (uint8_t) ((AUDIO_SAMPLING_RATE >> 16) & 0xFF);
         return tud_audio_buffer_and_schedule_control_xfer(rhport, p_request, freq, sizeof(freq));
       }
       break;
@@ -505,18 +510,18 @@ void tud_audio_feedback_params_cb(uint8_t func_id, uint8_t alt_itf, audio_feedba
   (void) alt_itf;
   // Set feedback method to fifo counting
   feedback_param->method = AUDIO_FEEDBACK_METHOD_FIFO_COUNT;
-  feedback_param->sample_freq = current_sample_rate;
+  feedback_param->sample_freq = AUDIO_SAMPLING_RATE;
 
   // About FIFO threshold:
   //
   // By default the threshold is set to half FIFO size, which works well in most cases,
   // you can reduce the threshold to have less latency.
   //
-  // For example, here we could set the threshold to 2 ms of audio data, as audio_task() read audio data every 1 ms,
-  // having 2 ms threshold allows some margin and a quick response:
+  // audio_task() read audio data every 1 ms,
+  // we set the threshold to 4ms of audio data
   //
-  // feedback_param->fifo_count.fifo_threshold =
-  //    current_sample_rate * CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_RX * CFG_TUD_AUDIO_FUNC_1_N_BYTES_PER_SAMPLE_RX / 1000 * 2;
+  feedback_param->fifo_count.fifo_threshold =
+		  AUDIO_SAMPLING_RATE * CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_RX * CFG_TUD_AUDIO_FUNC_1_N_BYTES_PER_SAMPLE_RX / 1000 * 4;
 }
 
 #if CFG_AUDIO_DEBUG
@@ -547,18 +552,18 @@ void audio_task(void) {
   if (start_ms == curr_ms) return; // not enough time
   start_ms = curr_ms;
 
-  uint16_t length = (uint16_t) (current_sample_rate / 1000 * CFG_TUD_AUDIO_FUNC_1_N_BYTES_PER_SAMPLE_RX * CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_RX);
-  uint16_t available = tud_audio_available();
+
+  const uint16_t available = tud_audio_available();
 
   if (blink_interval_ms == BLINK_STREAMING) {
 	  // start audio only when the stream is active
-	  if ((available > 3*length) && (get_audio_state() == I2S_AUDIO_STOPPED)) {
+	  if ((available >= 4*AUDIO_PACKET_LEN) && (get_audio_state() == I2S_AUDIO_STOPPED)) {
 		  audio_play();
 	  }
   }
 
   // stop when data actually stop
-  if ((available < length) && (get_audio_state() == I2S_AUDIO_STREAMING)) {
+  if ((available < AUDIO_PACKET_LEN) && (get_audio_state() == I2S_AUDIO_STREAMING)) {
 	  audio_stop();
   }
 }
@@ -590,7 +595,7 @@ void audio_debug_task(void) {
   start_ms = curr_ms;
 
   audio_debug_info_t debug_info;
-  debug_info.sample_rate = current_sample_rate;
+  debug_info.sample_rate = AUDIO_SAMPLING_RATE;
   debug_info.alt_settings = current_alt_settings;
   debug_info.fifo_size = CFG_TUD_AUDIO_FUNC_1_EP_OUT_SW_BUF_SZ;
   debug_info.fifo_count = fifo_count;
@@ -635,7 +640,11 @@ void tud_hid_set_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t rep
 //--------------------------------------------------------------------------------------------------------------
 
 inline void board_led_write(bool state) {
-	  HAL_GPIO_WritePin(GPIOD, LD4_Pin, state ? GPIO_PIN_SET : GPIO_PIN_RESET);
+	// LD3_Pin = Orange LED,
+	// LD4_Pin = Green LED,
+	// LD5_Pin = Red LED
+	// LD6_Pin = Blue LED
+	HAL_GPIO_WritePin(GPIOD, LD4_Pin, state ? GPIO_PIN_SET : GPIO_PIN_RESET);
 }
 
 size_t board_get_unique_id(uint8_t id[], size_t max_len) {
