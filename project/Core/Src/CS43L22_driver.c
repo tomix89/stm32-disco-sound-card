@@ -131,7 +131,7 @@ int audio_set_master_volume_db(int8_t db) {
   success += codec_i2c_write_reg(CS43L22_REG_MASTER_B_VOL, value);
 
   // if there was any error it will be non zero
-  	return success != 0;
+  return success != 0;
 }
 
 //-------------------------------------------------------------------------------------------------------
@@ -140,6 +140,7 @@ int audio_set_master_volume_db(int8_t db) {
 
 void audio_play() {
 	i2s_stream_state = I2S_AUDIO_STREAMING;
+	HAL_GPIO_WritePin(GPIOD, LD3_Pin, GPIO_PIN_SET);
 
 	if (isFirst) {
 		isFirst = 0;
@@ -150,8 +151,15 @@ void audio_play() {
 
 void audio_stop() {
 	i2s_stream_state = I2S_AUDIO_STOPPED;
+	HAL_GPIO_WritePin(GPIOD, LD3_Pin, GPIO_PIN_RESET);
 
 	audio_set_master_volume_db(MASTER_MIN_VOLUME_DB);
+
+	// 1. Mute the DAC's and PWM outputs
+	// 2. Disable soft ramp and zero cross volume transitions.
+	// 3. Set the "Power Ctl 1" register (0x02) to 0x9F.
+	// 4. Wait at least 100 μs.
+	// 5. MCLK may be removed at this time.
 
 	// we cant's stop the DMA immediately, because CS43L22
 	// needs MCLK and LRCLK to set the volume/mute (it has some ramping)
@@ -173,8 +181,35 @@ void loadMore() {
 	const uint16_t bytesToRead = SAMP_ALL_CHANNELS * 2;
     const uint16_t I2S_BUFF_OFFS = buffStatus == SEND_2ND_HALF_FILL_1ST ? 0 : SAMP_ALL_CHANNELS;
 
+    // since we are not stopping the I2S it will deplete the USB FIFO fully
+    // but additionally it will also slow the refill significantly
+    // so take samples out of the USB FIFO only when really playing
+    if (i2s_stream_state == I2S_AUDIO_STOPPED) {
+    	return;
+    }
+
 	// this reads in bytes
 	tud_audio_read(&i2s_audio_buffer[I2S_BUFF_OFFS], bytesToRead);
+
+
+	{
+		// really basic signal level detection
+		static uint8_t pwm_counter = 0;
+		static int32_t average = 0;
+		int16_t max = 0;
+		for (int i=0; i<SAMP_ALL_CHANNELS; ++i) {
+			max = MAX((int16_t)i2s_audio_buffer[I2S_BUFF_OFFS+i], max);
+		}
+		average = (9 * average + max) / 10;
+
+		// Increase counter and wrap at 10
+		pwm_counter++;
+		if (pwm_counter >= 10) {
+			pwm_counter = 0;
+		}
+
+		HAL_GPIO_WritePin(GPIOD, LD6_Pin, average/1200 > pwm_counter ? GPIO_PIN_SET : GPIO_PIN_RESET);
+	}
 }
 
 void HAL_I2S_TxHalfCpltCallback(I2S_HandleTypeDef *hi2s) {

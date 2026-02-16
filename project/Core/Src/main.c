@@ -79,7 +79,30 @@ static void MX_I2S3_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+#ifdef DEBUG
+//--------------- this is only for debug print in the debugger --------------
+// https://www.phippselectronics.com/debug-an-stm32-with-printf-using-only-an-st-link/
 
+// goto Run -> Debug Configurations, go to the Debugger tab.
+// Enable Serial Wire Viewer (SWV) and then match your system clock frequency to the Core Clock used by SWV.
+
+//To be able to show your printf()s on a console, you must access the SWV ITM Data Console Window.
+// While still in Debug (on a pause), go to Window -> Show View -> SWV ITM Data Console
+
+// Configure the SWV ITM Console Window through the configuration button below. (wrench and screw driver)
+//  tick port 0 of the ITM Stimulus Ports.
+// To run SWV, you must remember to click the Start Trace button.  !!!! this record button (gray circle -> red circle)
+
+int _write(int le, char *ptr, int len) {
+	int DataIdx;
+	for(DataIdx = 0; DataIdx < len; DataIdx++) {
+		ITM_SendChar(*ptr++);
+	}
+
+	return len;
+}
+//--------------- end of debug print in the debugger --------------
+#endif
 /* USER CODE END 0 */
 
 /**
