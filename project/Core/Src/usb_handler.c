@@ -59,7 +59,7 @@ static uint32_t blink_interval_ms = BLINK_NOT_MOUNTED;
 // Audio controls
 // Current states
 uint8_t mute[CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_RX + 1];   // +1 for master channel 0
-int16_t volume[CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_RX + 1];// +1 for master channel 0
+int16_t volume_db_256[CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_RX + 1];// +1 for master channel 0 in 1/256th of db steps
 
 
 #if CFG_AUDIO_DEBUG
@@ -176,6 +176,13 @@ static bool audio10_set_req_entity(tusb_control_request_t const *p_request, uint
             mute[channelNum] = pBuff[0];
 
             TU_LOG2("    Set Mute: %d of channel: %u\r\n", mute[channelNum], channelNum);
+
+            // channelNum=0 is the master channel
+            // then 1,2 are L and R
+            if (channelNum == 0) {
+            	audio_set_hp_mute(mute[channelNum]);
+            }
+
             return true;
 
           default:
@@ -188,9 +195,15 @@ static bool audio10_set_req_entity(tusb_control_request_t const *p_request, uint
             // Only 1st form is supported
             TU_VERIFY(p_request->wLength == 2);
 
-            volume[channelNum] = (int16_t)tu_unaligned_read16(pBuff) / 256;
+            volume_db_256[channelNum] = (int16_t)tu_unaligned_read16(pBuff);
+            TU_LOG2("    Set Volume: %d dB of channel: %u\r\n", volume_db_256[channelNum]/256, channelNum);
 
-            TU_LOG2("    Set Volume: %d dB of channel: %u\r\n", volume[channelNum], channelNum);
+            // channelNum=0 is the master volume
+            // then 1,2 are L and R
+            if (channelNum == 0) {
+            	audio_set_hp_volume_db(volume_db_256[channelNum]);
+            }
+
             return true;
 
           default:
@@ -218,39 +231,39 @@ static bool audio10_get_req_entity(uint8_t rhport, tusb_control_request_t const 
       case AUDIO10_FU_CTRL_MUTE:
         // Audio control mute cur parameter block consists of only one byte - we thus can send it right away
         // There does not exist a range parameter block for mute
-        TU_LOG2("    Get Mute of channel: %u\r\n", channelNum);
+    	  TU_LOG2("    Get Mute of channel: %u, %u\r\n", channelNum, mute[channelNum]);
         return tud_audio_buffer_and_schedule_control_xfer(rhport, p_request, &mute[channelNum], 1);
 
       case AUDIO10_FU_CTRL_VOLUME:
         switch (p_request->bRequest) {
           case AUDIO10_CS_REQ_GET_CUR:
-            TU_LOG2("    Get Volume of channel: %u\r\n", channelNum);
+        	  TU_LOG2("    Get Volume of channel: %u, %u\r\n", channelNum, volume_db_256[channelNum]/256);
             {
-              int16_t vol = (int16_t) volume[channelNum];
-              vol = vol * 256; // convert to 1/256 dB units
-              return tud_audio_buffer_and_schedule_control_xfer(rhport, p_request, &vol, sizeof(vol));
+              int16_t vol = volume_db_256[channelNum];
+              return tud_audio_buffer_and_schedule_control_xfer(rhport, p_request, &vol, sizeof(vol)); // 1/256 dB units
             }
 
           case AUDIO10_CS_REQ_GET_MIN:
-            TU_LOG2("    Get Volume min of channel: %u\r\n", channelNum);
+        	  TU_LOG2("    Get Volume min of channel: %u\r\n", channelNum);
             {
-              int16_t min = -90; // -90 dB
+              int16_t min = HP_MIN_VOLUME_DB;
               min = min * 256; // convert to 1/256 dB units
               return tud_audio_buffer_and_schedule_control_xfer(rhport, p_request, &min, sizeof(min));
             }
 
           case AUDIO10_CS_REQ_GET_MAX:
-            TU_LOG2("    Get Volume max of channel: %u\r\n", channelNum);
+        	  TU_LOG2("    Get Volume max of channel: %u\r\n", channelNum);
             {
-              int16_t max = 30; // +30 dB
+              int16_t max = HP_MAX_VOLUME_DB;
               max = max * 256; // convert to 1/256 dB units
               return tud_audio_buffer_and_schedule_control_xfer(rhport, p_request, &max, sizeof(max));
             }
 
           case AUDIO10_CS_REQ_GET_RES:
-            TU_LOG2("    Get Volume res of channel: %u\r\n", channelNum);
+        	  TU_LOG2("    Get Volume res of channel: %u\r\n", channelNum);
             {
-              int16_t res = 128; // 0.5 dB
+              int16_t res = HP_VOLUME_RESOLUTION_DB;
+              res = res * 256; // in 1/256 dB units
               return tud_audio_buffer_and_schedule_control_xfer(rhport, p_request, &res, sizeof(res));
             }
             // Unknown/Unsupported control
@@ -602,7 +615,7 @@ void audio_debug_task(void) {
   debug_info.fifo_count_avg = (uint16_t) (fifo_count_avg >> 16);
   for (int i = 0; i < CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_RX + 1; i++) {
     debug_info.mute[i] = mute[i];
-    debug_info.volume[i] = volume[i];
+    debug_info.volume[i] = volume_db_256[i] / 256;
   }
 
   if (tud_hid_ready())

@@ -29,6 +29,7 @@ SOFTWARE.
 #include "stm32f4xx_hal.h"
 #include "main.h"
 #include "tusb.h"
+#include <stdio.h>
 
 #define CODEC_I2C_ADDR 0x94
 
@@ -43,6 +44,48 @@ static I2S_HandleTypeDef *hi2s;
 
 #define OUTPUT_DEVICE_HEADPHONE   0xAF
 #define OUTPUT_DEVICE_OFF         0xFF
+
+// CS43l22 Registers
+// from https://github.com/STMicroelectronics/stm32-cs43l22
+#define   CS43L22_REG_ID                  0x01
+#define   CS43L22_REG_POWER_CTL1          0x02
+#define   CS43L22_REG_POWER_CTL2          0x04
+#define   CS43L22_REG_CLOCKING_CTL        0x05
+#define   CS43L22_REG_INTERFACE_CTL1      0x06
+#define   CS43L22_REG_INTERFACE_CTL2      0x07
+#define   CS43L22_REG_PASSTHR_A_SELECT    0x08
+#define   CS43L22_REG_PASSTHR_B_SELECT    0x09
+#define   CS43L22_REG_ANALOG_ZC_SR_SETT   0x0A
+#define   CS43L22_REG_PASSTHR_GANG_CTL    0x0C
+#define   CS43L22_REG_PLAYBACK_CTL1       0x0D
+#define   CS43L22_REG_MISC_CTL            0x0E
+#define   CS43L22_REG_PLAYBACK_CTL2       0x0F
+#define   CS43L22_REG_PASSTHR_A_VOL       0x14
+#define   CS43L22_REG_PASSTHR_B_VOL       0x15
+#define   CS43L22_REG_PCMA_VOL            0x1A
+#define   CS43L22_REG_PCMB_VOL            0x1B
+#define   CS43L22_REG_BEEP_FREQ_ON_TIME   0x1C
+#define   CS43L22_REG_BEEP_VOL_OFF_TIME   0x1D
+#define   CS43L22_REG_BEEP_TONE_CFG       0x1E
+#define   CS43L22_REG_TONE_CTL            0x1F
+#define   CS43L22_REG_MASTER_A_VOL        0x20
+#define   CS43L22_REG_MASTER_B_VOL        0x21
+#define   CS43L22_REG_HEADPHONE_A_VOL     0x22
+#define   CS43L22_REG_HEADPHONE_B_VOL     0x23
+#define   CS43L22_REG_SPEAKER_A_VOL       0x24
+#define   CS43L22_REG_SPEAKER_B_VOL       0x25
+#define   CS43L22_REG_CH_MIXER_SWAP       0x26
+#define   CS43L22_REG_LIMIT_CTL1          0x27
+#define   CS43L22_REG_LIMIT_CTL2          0x28
+#define   CS43L22_REG_LIMIT_ATTACK_RATE   0x29
+#define   CS43L22_REG_OVF_CLK_STATUS      0x2E
+#define   CS43L22_REG_BATT_COMPENSATION   0x2F
+#define   CS43L22_REG_VP_BATTERY_LEVEL    0x30
+#define   CS43L22_REG_SPEAKER_STATUS      0x31
+#define   CS43L22_REG_TEMPMONITOR_CTL     0x32
+#define   CS43L22_REG_THERMAL_FOLDBACK    0x33
+#define   CS43L22_REG_CHARGE_PUMP_FREQ    0x34
+
 
 static uint8_t i2s_stream_state = I2S_AUDIO_STOPPED;
 
@@ -120,18 +163,61 @@ int audio_init(void *i2c, void *i2s) {
 	return success != 0;
 }
 
-int audio_set_master_volume_db(int8_t db) {
-  db = MIN(db, MASTER_MAX_VOLUME_DB);
-  db = MAX(db, MASTER_MIN_VOLUME_DB);
+int audio_set_hp_volume_db(int16_t db_256) {
+  db_256 = MIN(db_256, HP_MAX_VOLUME_DB << 8);
+  db_256 = MAX(db_256, HP_MIN_VOLUME_DB << 8);
+
+#ifdef DEBUG
+  printf("setting vol: %d, %d.%d db\n", db_256, db_256/256, db_256/128*5);
+#endif
 
   // CS43L22 has a 0.5db resolution
-  uint8_t value = 2*db;
+  uint8_t value = db_256 >> 7;
+  uint8_t success = 0;
+  success += codec_i2c_write_reg(CS43L22_REG_HEADPHONE_A_VOL, value);
+  success += codec_i2c_write_reg(CS43L22_REG_HEADPHONE_B_VOL, value);
+
+  // if there was any error it will be non zero
+  return success != 0;
+}
+
+int audio_set_hp_mute(uint8_t mute) {
+	  uint8_t value = mute > 0 ? 0b11000000 : 0b00000000;
+	  uint8_t success = 0;
+	  success += codec_i2c_write_reg(CS43L22_REG_PLAYBACK_CTL2, value);
+
+	  // if there was any error it will be non zero
+	  return success != 0;
+}
+
+//--------------------------------------------------------------------
+//----------------- only for used internally in CS43L22_driver -------
+//--------------------------------------------------------------------
+
+int audio_set_master_volume_db(int16_t db_256) {
+  db_256 = MIN(db_256, MASTER_MAX_VOLUME_DB << 8);
+  db_256 = MAX(db_256, MASTER_MIN_VOLUME_DB << 8);
+
+  // CS43L22 has a 0.5db resolution
+  uint8_t value = db_256 >> 7;
   uint8_t success = 0;
   success += codec_i2c_write_reg(CS43L22_REG_MASTER_A_VOL, value);
   success += codec_i2c_write_reg(CS43L22_REG_MASTER_B_VOL, value);
 
   // if there was any error it will be non zero
   return success != 0;
+}
+
+// do not use master mute as it has also the analog gain in the same register
+// will be hard to do write only
+int audio_set_pcm_mute(uint8_t mute) {
+	  uint8_t value = mute > 0 ? 0b10000000 : 0b00000000;
+	  uint8_t success = 0;
+	  success += codec_i2c_write_reg(CS43L22_REG_PCMA_VOL, value);
+	  success += codec_i2c_write_reg(CS43L22_REG_PCMA_VOL, value);
+
+	  // if there was any error it will be non zero
+	  return success != 0;
 }
 
 //-------------------------------------------------------------------------------------------------------
@@ -146,14 +232,14 @@ void audio_play() {
 		isFirst = 0;
 		HAL_I2S_Transmit_DMA(hi2s, i2s_audio_buffer, TOTAL_AUDIO_SAMPLES);
 	}
-	audio_set_master_volume_db(-10);
+	audio_set_pcm_mute(0);
 }
 
 void audio_stop() {
 	i2s_stream_state = I2S_AUDIO_STOPPED;
 	HAL_GPIO_WritePin(GPIOD, LD3_Pin, GPIO_PIN_RESET);
 
-	audio_set_master_volume_db(MASTER_MIN_VOLUME_DB);
+	audio_set_pcm_mute(1);
 
 	// 1. Mute the DAC's and PWM outputs
 	// 2. Disable soft ramp and zero cross volume transitions.
@@ -166,6 +252,8 @@ void audio_stop() {
 	// check 4.10 Recommended Power-Down Sequence of the CS43L22 data sheet
 	// for now it states that a fully powered peripheral consumes 25mW
 	// HAL_I2S_DMAStop(hi2s);
+
+	 memset(i2s_audio_buffer, 0, TOTAL_AUDIO_SAMPLES*2); // *2 because memset() sets in bytes
 }
 
 inline I2sAudioState get_audio_state() {
