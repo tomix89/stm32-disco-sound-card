@@ -90,6 +90,10 @@ extern C
 #define SSD1306_RESET_HIGH() HAL_GPIO_WritePin(OLED_RST_GPIO_Port, OLED_RST_Pin, GPIO_PIN_SET)
 #define SSD1306_RESET_LOW()  HAL_GPIO_WritePin(OLED_RST_GPIO_Port, OLED_RST_Pin, GPIO_PIN_RESET)
 
+/* Slave Select pin control */
+#define SSD1306_SS_HIGH() HAL_GPIO_WritePin(SPI2_SS_GPIO_Port, SPI2_SS_Pin, GPIO_PIN_SET)
+#define SSD1306_SS_LOW()  HAL_GPIO_WritePin(SPI2_SS_GPIO_Port, SPI2_SS_Pin, GPIO_PIN_RESET)
+
 /*******************************************************
 ********** SSD1306 Command Macros
 *******************************************************/

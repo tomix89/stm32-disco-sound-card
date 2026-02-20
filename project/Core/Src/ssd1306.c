@@ -774,7 +774,9 @@ void SSD1306_Clear(void)
 void ssd1306_SPI_WriteCmd(uint8_t command)
 {
 	SSD1306_CMD_ACCESS();
+	SSD1306_SS_LOW();
 	HAL_SPI_Transmit(hspi, &command, 1, SSD1306_SPI_TIMEOUT);
+	SSD1306_SS_HIGH();
 }
 
 /**
@@ -790,8 +792,24 @@ uint8_t ssd1306_SPI_WriteDisp(uint8_t *pTxBuffer)
 		/* Set state to busy */
 		SSD1306_Disp.state = SSD1306_STATE_BUSY;
 
+		SSD1306_CMD_ACCESS();
+		SSD1306_SS_LOW();
+
+		// this resets the cursor on the HW to 0,0
+		SSD1306_SPI_WRITE_CMD(0x21);
+		SSD1306_SPI_WRITE_CMD(0x00);
+		SSD1306_SPI_WRITE_CMD(0x7F);
+
+		SSD1306_SPI_WRITE_CMD(0x22);
+		SSD1306_SPI_WRITE_CMD(0x00);
+		SSD1306_SPI_WRITE_CMD(0x07);
+
+
+		SSD1306_SS_HIGH();
+
 		/* Set D/C high for data buffer access */
 		SSD1306_DATA_ACCESS();
+		SSD1306_SS_LOW();
 
 		/* DMA enabled send with SPI - callback function run when complete */
 		if (HAL_SPI_Transmit_DMA(hspi, pTxBuffer, (uint16_t)sizeof(SSD1306_Buffer)) != HAL_OK)
@@ -889,4 +907,12 @@ void SSD1306_Stopscroll(void)
 	SSD1306_CMD_ACCESS();
 
 	SSD1306_SPI_WRITE_CMD(SSD1306_DEACTIVATE_SCROLL);
+}
+
+//-------------------------------------------------------------------------------------------
+// callback when the DMA finished sending data
+void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi) {
+	/* Set the SSD1306 state to ready */
+	SSD1306_Disp.state = SSD1306_STATE_READY;
+	SSD1306_SS_HIGH();
 }

@@ -33,8 +33,8 @@ set up I2C1 (CS43L22)
 
 
 set up SPI2 (OLED display)
-Half duplex master 
-use HW slave select (NSS) - PB12 needs to be unmapped from I2S2_NS which is not even used for anything ?
+Transmit only master 
+do NOT use the HW slave select (NSS) - http://efton.sk/STM32/gotcha/g21.html - define a generic GPIO out for this 
 8bit MSB First
 1.5MBit/s
 CPOL Low
@@ -53,6 +53,10 @@ we need to set up a few more GPIOs for the OLED display
 PE13 - OLED display reset
 PE11 - OLED CMD/DATA
 all are output, push pull, no pull-up or pull-down, speed - medium
+
+
+GPIO for user button
+- add 3 GPIO input pins with a pullup on them (no interrupt needed)
 
 generate the project as STM Ide project and open it
 

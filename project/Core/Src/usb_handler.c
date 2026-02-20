@@ -560,10 +560,10 @@ bool tud_audio_rx_done_isr(uint8_t rhport, uint16_t n_bytes_received, uint8_t fu
 // This task simulates an audio transmit callback, one frame is sent every 1ms.
 // In a real application, this would be replaced with actual I2S transmit callback.
 void audio_task(void) {
-  static uint32_t start_ms = 0;
+  static uint32_t last_ms = 0;
   uint32_t curr_ms = HAL_GetTick();
-  if (start_ms == curr_ms) return; // not enough time
-  start_ms = curr_ms;
+  if (last_ms == curr_ms) return; // not enough time
+  last_ms = curr_ms;
 
 
   const uint16_t available = tud_audio_available();

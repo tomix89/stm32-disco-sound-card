@@ -1,68 +1,170 @@
 /**
-Copyright (c) 2026 tomix89
+ Copyright (c) 2026 tomix89
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to use,
-copy, modify, and distribute the Software for non-commercial purposes only,
-subject to the following conditions:
+ Permission is hereby granted, free of charge, to any person obtaining a copy
+ of this software and associated documentation files (the "Software"), to use,
+ copy, modify, and distribute the Software for non-commercial purposes only,
+ subject to the following conditions:
 
-1. Attribution: All copies or substantial portions of the Software must
-   retain this copyright notice and the original author information.
+ 1. Attribution: All copies or substantial portions of the Software must
+ retain this copyright notice and the original author information.
 
-2. Open-Source Requirement: Any modified versions of the Software must be
-   distributed under this same license and made publicly available in source
-   form.
+ 2. Open-Source Requirement: Any modified versions of the Software must be
+ distributed under this same license and made publicly available in source
+ form.
 
-3. Non-Commercial Use: The Software may not be used for commercial purposes
-   without explicit written permission from the author.
+ 3. Non-Commercial Use: The Software may not be used for commercial purposes
+ without explicit written permission from the author.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-*/
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ SOFTWARE.
+ */
 
 #include "UI_control.h"
 #include "main.h"
 #include "ssd1306.h"
+#include <stdio.h> // printf()
+#include <stdbool.h>
 
 SSD1306_t SSD1306_Disp;
 
-void ui_task(void) {
-	static int xPos = 5;
+typedef enum {
+	BTN_LEFT = 0, BTN_MIDDLE, BTN_RIGHT, BTN_COUNT
+} Button;
+
+// Timing thresholds (in ms)
+#define PRESS_THRESHOLD  5
+#define HOLD_START       250
+#define HOLD_REPEAT      100
+
+typedef struct {
+	uint16_t press_cntr; // count up, how long the button is pressed
+	uint16_t hold_cntr; // count down to next hold event
+	bool pressed_event_sent;
+
+} ButtonState;
+static ButtonState btn_state[BTN_COUNT];
+
+typedef enum {
+	PAGE_BASS = 0, PAGE_TREBLE, PAGE_BASS_FREQ, PAGE_TREBLE_FREQ, PAGE_CNT
+} Page;
+static Page active_page = PAGE_BASS;
+
+static void key_pressed(Button btn);
+static void key_hold(Button btn);
+
+static inline void print_us() {
+	uint32_t ticks_per_us = SystemCoreClock / 1000000;
+	uint32_t elapsed_us = (SysTick->LOAD - SysTick->VAL) / ticks_per_us;
 
 	uint32_t curr_ms = HAL_GetTick();
-	if (curr_ms % 50 != 0) {
-		return; // not enough time passed
+	printf("%lu.%04lu ", curr_ms, elapsed_us);
+}
+
+// Call this every 1 ms
+static void update_button(GPIO_TypeDef *port, uint16_t pin, uint8_t btn_id) {
+	// buttons are on pull up -> active low
+	bool is_down = (HAL_GPIO_ReadPin(port, pin) == GPIO_PIN_RESET);
+
+	if (is_down) {
+		if (!btn_state[btn_id].pressed_event_sent) {
+			btn_state[btn_id].press_cntr++;
+
+			// Trigger "pressed" event once after PRESS_THRESHOLD
+			if (btn_state[btn_id].press_cntr >= PRESS_THRESHOLD) {
+				key_pressed(btn_id);
+				btn_state[btn_id].pressed_event_sent = true;
+				btn_state[btn_id].hold_cntr = HOLD_START; // start count down
+			}
+		} else {
+			// Handle hold events
+			btn_state[btn_id].hold_cntr--;
+
+			// First hold event after HOLD_START
+			if (btn_state[btn_id].hold_cntr == 0) {
+				key_hold(btn_id);
+				btn_state[btn_id].hold_cntr = HOLD_REPEAT; // restart for repeat
+			}
+		}
+	} else {
+		// Button released -> reset state
+		btn_state[btn_id].press_cntr = 0;
+		btn_state[btn_id].hold_cntr = 0;
+		btn_state[btn_id].pressed_event_sent = false;
+	}
+}
+
+static void show_page(Page page) {
+	SSD1306_Fill(SSD1306_PX_CLR_BLACK);
+
+	switch (page) {
+	case PAGE_BASS:
+		SSD1306_GotoXY(0, 3);
+		SSD1306_Puts("Bass", &Font_16x26, SSD1306_PX_CLR_WHITE);
+		break;
+
+	case PAGE_TREBLE:
+		SSD1306_GotoXY(0, 3);
+		SSD1306_Puts("Treb", &Font_16x26, SSD1306_PX_CLR_WHITE);
+		break;
+
+	case PAGE_BASS_FREQ:
+		SSD1306_GotoXY(0, 0);
+		SSD1306_Puts("Bass", &Font_11x18, SSD1306_PX_CLR_WHITE);
+		SSD1306_GotoXY(0, 20);
+		SSD1306_Puts(" freq", &Font_7x10, SSD1306_PX_CLR_WHITE);
+		break;
+
+	case PAGE_TREBLE_FREQ:
+		SSD1306_GotoXY(0, 0);
+		SSD1306_Puts("Treb", &Font_11x18, SSD1306_PX_CLR_WHITE);
+		SSD1306_GotoXY(0, 20);
+		SSD1306_Puts(" freq", &Font_7x10, SSD1306_PX_CLR_WHITE);
+		break;
 	}
 
-	/* Only write to buffer when not in transmission */
-	if (SSD1306_Disp.state == SSD1306_STATE_READY) {
-		/* These blocking calls will write data to buffer */
-		SSD1306_Fill_ToRight(xPos, SSD1306_PX_CLR_BLACK);
+	if (SSD1306_UpdateScreen() == SSD1306_SPI_ERROR) {
+		/* Program enters here only when HAL_SPI_Transmit_DMA function call fails */
+		Error_Handler();
+	};
+}
 
-		SSD1306_GotoXY(xPos, 5);
-		SSD1306_Puts("Hello", &Font_7x10, SSD1306_PX_CLR_WHITE);
-		SSD1306_GotoXY(xPos, 21);
-		SSD1306_Puts("World", &Font_7x10, SSD1306_PX_CLR_WHITE);
-
-		/* Update the ssd1306 display in non-blocking mode -> should return SSD1306_STATE_READY if successful */
-		if (SSD1306_UpdateScreen() == SSD1306_SPI_ERROR) {
-			/* Program enters here only when HAL_SPI_Transmit_DMA function call fails */
-			Error_Handler();
-		};
-
-		xPos++;
-		if (xPos == 80) {
-			xPos = 5;
+static void key_pressed(Button btn) {
+	if (btn == BTN_RIGHT) {
+		active_page++;
+		if (active_page >= PAGE_CNT) {
+			active_page = 0;
 		}
 	}
+
+	if (btn == BTN_LEFT) {
+		active_page--;
+		if (active_page >= PAGE_CNT) {
+			active_page = PAGE_CNT - 1;
+		}
+	}
+
+	show_page(active_page);
 }
 
-void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi) {
-	/* Set the SSD1306 state to ready */
-	SSD1306_Disp.state = SSD1306_STATE_READY;
+static void key_hold(Button btn) {
+
 }
+
+void ui_task(void) {
+	static uint32_t last_ms = 0;
+	uint32_t curr_ms = HAL_GetTick();
+	if (last_ms == curr_ms)
+		return; // not enough time
+	last_ms = curr_ms;
+
+	update_button(BTN_USR_L_GPIO_Port, BTN_USR_L_Pin, BTN_LEFT);
+	update_button(BTN_USR_M_GPIO_Port, BTN_USR_M_Pin, BTN_MIDDLE);
+	update_button(BTN_USR_R_GPIO_Port, BTN_USR_R_Pin, BTN_RIGHT);
+}
+
