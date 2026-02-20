@@ -13,7 +13,7 @@ the PLL values were calculated with i2s-clock-calc.py
 
 ------------------------- setup the audio codeck cs43l22
 
-set up I2S3
+set up I2S3 (CS43L22)
 master mode half duplex
 DON'T forget to enable master clock out!
 
@@ -23,14 +23,36 @@ for that set in clock (calculated by my i2s-clock-calc.py)
 8MHZ main crystal -> PPL M=5, N=192, R=5, therefeore the I2S clock is 61.44MHz (it is exactly 5x 12.288MHz)
 eanble DMA1 stream5 global interrup
 DMA is circular increment only on memory
+Priority - High
 Data width: Half word
  - FiFo is optional (could help with possible cracks) - if more DMA channels are used it is not guaranteed to get data, so use a small FiFi to compensate for that, therefore DMA will transfer 4/8 samples in one go instead of 1-1 all the time
 
 
-set up I2C1
+set up I2C1 (CS43L22)
 100Khz 7bit
 
-used GPIO shall be the correct one already defided by the board for both I2C1 and I2S3
+
+set up SPI2 (OLED display)
+Half duplex master 
+use HW slave select (NSS) - PB12 needs to be unmapped from I2S2_NS which is not even used for anything ?
+8bit MSB First
+1.5MBit/s
+CPOL Low
+CPHA 1 Edge
+
+set up DMA - DMA1 stream 4
+mode normal - increment only memory - data widtht Byte
+priority - low
+use fifo - half full - Burst size Single
+enable DMA1 stream4 gobal interrupt
+
+
+
+used GPIO for the I2C1 and I2S3 and SPI2 shall be the correct one already defided by the board in cube MX
+we need to set up a few more GPIOs for the OLED display
+PE13 - OLED display reset
+PE11 - OLED CMD/DATA
+all are output, push pull, no pull-up or pull-down, speed - medium
 
 generate the project as STM Ide project and open it
 
@@ -119,3 +141,17 @@ the main loop stuff
 
 some of it needs to go to the main.c but the majority can be in a separtate file 
 Since the code we are adding is large enough i add it as a separate file
+
+
+------------------------- Setup OLED display ----------------------------------------
+i found a really promissing OLED display driver for the SSD1306 i'm using
+It has DMA based data transfer
+
+https://github.com/esyywar/ssd1306_drivers/
+check out the code, and copy the contents of the Inc and Src to our project's Inc and Src
+
+create also 2 additional files UI_control.h / UI_control.c
+this will be the main Uset Interface control code
+
+add the HAL_SPI_TxCpltCallback to the UI_control.c
+update the pin and port definition for the OLED GPIO for RST, D/C etc. in "ssd1306.h"

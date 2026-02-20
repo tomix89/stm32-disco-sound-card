@@ -653,11 +653,7 @@ void tud_hid_set_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t rep
 //--------------------------------------------------------------------------------------------------------------
 
 inline void board_led_write(bool state) {
-	// LD3_Pin = Orange LED,
-	// LD4_Pin = Green LED,
-	// LD5_Pin = Red LED
-	// LD6_Pin = Blue LED
-	HAL_GPIO_WritePin(GPIOD, LD4_Pin, state ? GPIO_PIN_SET : GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(LED_Green_GPIO_Port, LED_Green_Pin, state ? GPIO_PIN_SET : GPIO_PIN_RESET);
 }
 
 size_t board_get_unique_id(uint8_t id[], size_t max_len) {

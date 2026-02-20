@@ -226,7 +226,7 @@ int audio_set_pcm_mute(uint8_t mute) {
 
 void audio_play() {
 	i2s_stream_state = I2S_AUDIO_STREAMING;
-	HAL_GPIO_WritePin(GPIOD, LD3_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(LED_Orange_GPIO_Port, LED_Orange_Pin, GPIO_PIN_SET);
 
 	if (isFirst) {
 		isFirst = 0;
@@ -237,7 +237,7 @@ void audio_play() {
 
 void audio_stop() {
 	i2s_stream_state = I2S_AUDIO_STOPPED;
-	HAL_GPIO_WritePin(GPIOD, LD3_Pin, GPIO_PIN_RESET);
+	HAL_GPIO_WritePin(LED_Orange_GPIO_Port , LED_Orange_Pin, GPIO_PIN_RESET);
 
 	audio_set_pcm_mute(1);
 
@@ -296,7 +296,7 @@ void loadMore() {
 			pwm_counter = 0;
 		}
 
-		HAL_GPIO_WritePin(GPIOD, LD6_Pin, average/1200 > pwm_counter ? GPIO_PIN_SET : GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(LED_Blue_GPIO_Port, LED_Blue_Pin, average/1200 > pwm_counter ? GPIO_PIN_SET : GPIO_PIN_RESET);
 	}
 }
 

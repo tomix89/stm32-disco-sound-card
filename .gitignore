@@ -6,6 +6,8 @@ project/Release/
 project/.settings/
 project/.metadata/
 project/*.launch
+# .mxproject is generated from the .ioc and is known to cause problems on checking out to different path
+project/.mxproject
 
 # Prerequisites
 *.d
