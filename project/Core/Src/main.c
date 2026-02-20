@@ -36,6 +36,8 @@ SOFTWARE.
 #include "common_types.h"
 #include "usb_handler.h"
 #include "CS43L22_driver.h"
+#include "ssd1306.h"
+#include "UI_control.h"
 
 /* USER CODE END Includes */
 
@@ -145,6 +147,11 @@ int main(void)
   MX_SPI2_Init();
   /* USER CODE BEGIN 2 */
 
+  // initialize OLED display
+  if (SSD1306_Init(&hspi2) != SSD1306_OK) {
+	Error_Handler();
+  }
+
   // init device stack on configured roothub port
   tusb_rhport_init_t dev_init = {
       .role = TUSB_ROLE_DEVICE,
@@ -165,6 +172,7 @@ int main(void)
     /* USER CODE BEGIN 3 */
 	  tud_task();// TinyUSB device task
 	  led_blinking_task();
+	  ui_task();
 
 #if CFG_AUDIO_DEBUG
 	  audio_debug_task();

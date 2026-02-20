@@ -47,12 +47,11 @@ extern C
  * SCK        |PB13         |Serial clock line
  * MOSI       |PB15         |Data line (stm32 -> SSD1306)
  * CS         |PB12         |Chip select (active low)
- * D/C        |PC8          |Data/Command buffer access select
- * RESET			|PC7					|Reset (held high, go low to reset)
- * VBATC      |PC6          |Power to OLED display - active low
- * VDDC       |PC5          |Power to OLED logic - active low
+ * D/C        |PE11         |Data/Command buffer access select
+ * RESET	  |PE13			|Reset (held high, go low to reset)
  */
 
+#include "main.h"
 #include "stm32f4xx_hal.h"
 #include "stm32f4xx_hal_gpio.h"
 #include "stm32f4xx_hal_spi.h"
@@ -84,20 +83,12 @@ extern C
 *******************************************************/
 
 /* Must toggle to access OLED command or data buffer */
-#define SSD1306_CMD_ACCESS() HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, GPIO_PIN_RESET)
-#define SSD1306_DISP_ACCESS() HAL_GPIO_WritePin(GPIOC, GPIO_PIN_8, GPIO_PIN_SET)
+#define SSD1306_CMD_ACCESS()  HAL_GPIO_WritePin(OLED_DC_GPIO_Port, OLED_DC_Pin, GPIO_PIN_RESET)
+#define SSD1306_DATA_ACCESS() HAL_GPIO_WritePin(OLED_DC_GPIO_Port, OLED_DC_Pin, GPIO_PIN_SET)
 
 /* Reset pin control */
-#define SSD1306_RESET_HIGH() HAL_GPIO_WritePin(GPIOC, GPIO_PIN_7, GPIO_PIN_SET)
-#define SSD1306_RESET_LOW() HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_RESET)
-
-/* Toggling power to display of OLED */
-#define SSD1306_DISP_POWER_EN() HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_RESET)
-#define SSD1306_DISP_POWER_DI() HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_SET)
-
-/* Toggling power to the logic of OLED */
-#define SSD1306_LOGIC_POWER_EN() HAL_GPIO_WritePin(GPIOC, GPIO_PIN_5, GPIO_PIN_RESET)
-#define SSD1306_LOGIC_POWER_DI() HAL_GPIO_WritePin(GPIOC, GPIO_PIN_5, GPIO_PIN_SET)
+#define SSD1306_RESET_HIGH() HAL_GPIO_WritePin(OLED_RST_GPIO_Port, OLED_RST_Pin, GPIO_PIN_SET)
+#define SSD1306_RESET_LOW()  HAL_GPIO_WritePin(OLED_RST_GPIO_Port, OLED_RST_Pin, GPIO_PIN_RESET)
 
 /*******************************************************
 ********** SSD1306 Command Macros
@@ -228,7 +219,7 @@ extern C
  *           - 0: SPI port has not been configured
  *           - 1: OLED initialized OK and ready to use
  */
-  uint8_t SSD1306_Init(void);
+  uint8_t SSD1306_Init(void *spi);
 
   /**
  * @brief  DeInitialize and power down SSD1306 OLED

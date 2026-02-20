@@ -29,7 +29,7 @@
 *********************************************************************/
 
 /* Handle for SPI communication peripheral */
-extern SPI_HandleTypeDef Spi_ssd1306Write;
+static SPI_HandleTypeDef *hspi;
 
 /* This variable should be defined in main */
 extern SSD1306_t SSD1306_Disp;
@@ -94,20 +94,18 @@ void SSD1306_DrawBitmap(int16_t x, int16_t y, const unsigned char *bitmap, int16
  *           - 0: SPI peripheral not initialized
  *           - 1: OLED initialized OK and ready to use
  */
-uint8_t SSD1306_Init(void)
+uint8_t SSD1306_Init(void *spi)
 {
+	hspi = spi;
+
 	/* Check that SPI peripheral is ready */
-	if (HAL_SPI_GetState(&Spi_ssd1306Write) != HAL_SPI_STATE_READY)
+	if (HAL_SPI_GetState(hspi) != HAL_SPI_STATE_READY)
 	{
 		return SSD1306_FAILED;
 	}
 
 	/* Prepare to send command bits */
 	SSD1306_CMD_ACCESS();
-
-	/* Turn VDD (logic power) on and wait to come on */
-	SSD1306_LOGIC_POWER_EN();
-	HAL_Delay(10);
 
 	/* Display off command */
 	SSD1306_SPI_WRITE_CMD(SSD1306_CMD_DISP_OFF);
@@ -123,10 +121,6 @@ uint8_t SSD1306_Init(void)
 
 	/* Clear screen and update */
 	SSD1306_Clear();
-
-	/* Give power to display and wait to come on */
-	SSD1306_DISP_POWER_EN();
-	HAL_Delay(100);
 
 	/* Set oscillator frequency */
 	SSD1306_SPI_WRITE_CMD(SSD1306_CLK_SET);
@@ -194,15 +188,6 @@ uint8_t SSD1306_DeInit(void)
 	/* Display off command */
 	SSD1306_SPI_WRITE_CMD(SSD1306_CMD_DISP_OFF);
 
-	/* VBAT off - cut power to display */
-	SSD1306_DISP_POWER_DI();
-
-	/* 100 ms delay */
-	HAL_Delay(100);
-
-	/* VDD off - cut power to logic */
-	SSD1306_LOGIC_POWER_DI();
-
 	/* Set structure values */
 	SSD1306_Disp.Initialized = 0;
 
@@ -230,7 +215,7 @@ void SSD1306_Switch(void)
 	}
 	else
 	{
-		SSD1306_Init();
+		SSD1306_Init(hspi);
 	}
 }
 
@@ -793,7 +778,7 @@ void SSD1306_Clear(void)
 void ssd1306_SPI_WriteCmd(uint8_t command)
 {
 	SSD1306_CMD_ACCESS();
-	HAL_SPI_Transmit(&Spi_ssd1306Write, &command, 1, SSD1306_SPI_TIMEOUT);
+	HAL_SPI_Transmit(hspi, &command, 1, SSD1306_SPI_TIMEOUT);
 }
 
 /**
@@ -810,10 +795,10 @@ uint8_t ssd1306_SPI_WriteDisp(uint8_t *pTxBuffer)
 		SSD1306_Disp.state = SSD1306_STATE_BUSY;
 
 		/* Set D/C high for data buffer access */
-		SSD1306_DISP_ACCESS();
+		SSD1306_DATA_ACCESS();
 
 		/* DMA enabled send with SPI - callback function run when complete */
-		if (HAL_SPI_Transmit_DMA(&Spi_ssd1306Write, pTxBuffer, (uint16_t)sizeof(SSD1306_Buffer)) != HAL_OK)
+		if (HAL_SPI_Transmit_DMA(hspi, pTxBuffer, (uint16_t)sizeof(SSD1306_Buffer)) != HAL_OK)
 		{
 			SSD1306_Disp.state = SSD1306_SPI_ERROR;
 		}
