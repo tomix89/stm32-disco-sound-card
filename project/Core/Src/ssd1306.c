@@ -119,8 +119,8 @@ uint8_t SSD1306_Init(void *spi)
 	SSD1306_SPI_WRITE_CMD(SSD1306_CLK_CHRG_PRD_SET);
 	SSD1306_SPI_WRITE_CMD(SSD1306_CLK_CHRG_PRD_VALUE);
 
-	/* Clear screen and update */
-	SSD1306_Clear();
+	/* Clear internal screen buffer */
+	SSD1306_Fill(SSD1306_PX_CLR_BLACK);
 
 	/* Set oscillator frequency */
 	SSD1306_SPI_WRITE_CMD(SSD1306_CLK_SET);
@@ -162,10 +162,6 @@ uint8_t SSD1306_Init(void *spi)
 	/* Initialized OK */
 	SSD1306_Disp.Initialized = 1;
 	SSD1306_Disp.state = SSD1306_STATE_READY;
-
-	/* Hang until screen has been updated */
-	while (SSD1306_Disp.state != SSD1306_STATE_READY)
-		;
 
 	/* Return OK */
 	return SSD1306_OK;

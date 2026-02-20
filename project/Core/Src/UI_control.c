@@ -32,43 +32,37 @@ SOFTWARE.
 SSD1306_t SSD1306_Disp;
 
 void ui_task(void) {
-	    static int xPos = 5;
-	    static uint32_t start_ms = 0;
+	static int xPos = 5;
 
-	    uint32_t curr_ms = HAL_GetTick();
-	    if (start_ms == curr_ms) {
-	    	return; // not enough time passed
-	    }
-	    start_ms = curr_ms;
+	uint32_t curr_ms = HAL_GetTick();
+	if (curr_ms % 50 != 0) {
+		return; // not enough time passed
+	}
 
-	    /* Only write to buffer when not in transmission */
-	    if (SSD1306_Disp.state == SSD1306_STATE_READY)
-	    {
-	      /* These blocking calls will write data to buffer */
-	      SSD1306_Fill_ToRight(xPos - 1, SSD1306_PX_CLR_BLACK);
+	/* Only write to buffer when not in transmission */
+	if (SSD1306_Disp.state == SSD1306_STATE_READY) {
+		/* These blocking calls will write data to buffer */
+		SSD1306_Fill_ToRight(xPos, SSD1306_PX_CLR_BLACK);
 
-	      SSD1306_GotoXY(xPos, 5);
-	      SSD1306_Puts("Hello", &Font_7x10, SSD1306_PX_CLR_WHITE);
-	      SSD1306_GotoXY(xPos, 21);
-	      SSD1306_Puts("World", &Font_7x10, SSD1306_PX_CLR_WHITE);
-	    }
+		SSD1306_GotoXY(xPos, 5);
+		SSD1306_Puts("Hello", &Font_7x10, SSD1306_PX_CLR_WHITE);
+		SSD1306_GotoXY(xPos, 21);
+		SSD1306_Puts("World", &Font_7x10, SSD1306_PX_CLR_WHITE);
 
-	    /* Update the ssd1306 display in non-blocking mode -> should return SSD1306_STATE_READY if successful */
-	    if (SSD1306_UpdateScreen() == SSD1306_SPI_ERROR)
-	    {
-	      /* Program enters here only when HAL_SPI_Transmit_DMA function call fails */
-	      Error_Handler();
-	    };
+		/* Update the ssd1306 display in non-blocking mode -> should return SSD1306_STATE_READY if successful */
+		if (SSD1306_UpdateScreen() == SSD1306_SPI_ERROR) {
+			/* Program enters here only when HAL_SPI_Transmit_DMA function call fails */
+			Error_Handler();
+		};
 
-	    xPos++;
-	    if (xPos == 80)
-	    {
-	      xPos = 5;
-	    }
-
+		xPos++;
+		if (xPos == 80) {
+			xPos = 5;
+		}
+	}
 }
 
 void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi) {
-  /* Set the SSD1306 state to ready */
-  SSD1306_Disp.state = SSD1306_STATE_READY;
+	/* Set the SSD1306 state to ready */
+	SSD1306_Disp.state = SSD1306_STATE_READY;
 }
