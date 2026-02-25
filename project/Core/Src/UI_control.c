@@ -28,6 +28,7 @@
 #include "UI_control.h"
 #include "main.h"
 #include "ssd1306.h"
+#include "audio_controls.h"
 #include <stdio.h> // printf()
 #include <stdbool.h>
 
@@ -39,8 +40,8 @@ typedef enum {
 
 // Timing thresholds (in ms)
 #define PRESS_THRESHOLD  5
-#define HOLD_START       250
-#define HOLD_REPEAT      100
+#define HOLD_START       350
+#define HOLD_REPEAT      120
 
 typedef struct {
 	uint16_t press_cntr; // count up, how long the button is pressed
@@ -52,8 +53,19 @@ static ButtonState btn_state[BTN_COUNT];
 
 typedef enum {
 	PAGE_BASS = 0, PAGE_TREBLE, PAGE_BASS_FREQ, PAGE_TREBLE_FREQ, PAGE_CNT
-} Page;
-static Page active_page = PAGE_BASS;
+} UiPage;
+static UiPage active_page = PAGE_BASS;
+
+// UiPage has to be in sync with "audio_controls.h" AudioControl
+// other ways it needs mapping between the 2
+_Static_assert((int)PAGE_BASS == (int)AUDIO_CONTROL_BASS, "UiPage must be in sync with AudioControl");
+_Static_assert((int)PAGE_TREBLE == (int)AUDIO_CONTROL_TREB, "UiPage must be in sync with AudioControl");
+_Static_assert((int)PAGE_BASS_FREQ == (int)AUDIO_CONTROL_BASS_FREQ, "UiPage must be in sync with AudioControl");
+_Static_assert((int)PAGE_TREBLE_FREQ == (int)AUDIO_CONTROL_TREB_FREQ, "UiPage must be in sync with AudioControl");
+
+// when a page is not selected the BTN_LEFT / BTN_RIGHT goes to the next Page
+// when a page is selected the value can be changed with BTN_LEFT / BTN_RIGHT
+bool is_page_selected = false;
 
 static void key_pressed(Button btn);
 static void key_hold(Button btn);
@@ -99,32 +111,58 @@ static void update_button(GPIO_TypeDef *port, uint16_t pin, uint8_t btn_id) {
 	}
 }
 
-static void show_page(Page page) {
-	SSD1306_Fill(SSD1306_PX_CLR_BLACK);
+static void show_page(UiPage page) {
+	const uint8_t BACK_CLR =
+			is_page_selected ? SSD1306_PX_CLR_WHITE : SSD1306_PX_CLR_BLACK;
+	const uint8_t FONT_CLR =
+			is_page_selected ? SSD1306_PX_CLR_BLACK : SSD1306_PX_CLR_WHITE;
+	char *string_ptr = 0; // for the audio strings
+
+	SSD1306_Fill(BACK_CLR);
 
 	switch (page) {
 	case PAGE_BASS:
-		SSD1306_GotoXY(0, 3);
-		SSD1306_Puts("Bass", &Font_16x26, SSD1306_PX_CLR_WHITE);
+		SSD1306_GotoXY(1, 0);
+		SSD1306_Puts("Bass", &Font_11x18, FONT_CLR);
+		SSD1306_GotoXY(0, 20);
+		SSD1306_Puts(" gain", &Font_7x10, FONT_CLR);
+
+		SSD1306_GotoXY(50, 7);
+		get_audio_value_str(AUDIO_CONTROL_BASS, &string_ptr);
+		SSD1306_Puts(string_ptr, &Font_11x18, FONT_CLR);
 		break;
 
 	case PAGE_TREBLE:
-		SSD1306_GotoXY(0, 3);
-		SSD1306_Puts("Treb", &Font_16x26, SSD1306_PX_CLR_WHITE);
+		SSD1306_GotoXY(1, 0);
+		SSD1306_Puts("Treb", &Font_11x18, FONT_CLR);
+		SSD1306_GotoXY(0, 20);
+		SSD1306_Puts(" gain", &Font_7x10, FONT_CLR);
+
+		SSD1306_GotoXY(50, 7);
+		get_audio_value_str(AUDIO_CONTROL_TREB, &string_ptr);
+		SSD1306_Puts(string_ptr, &Font_11x18, FONT_CLR);
 		break;
 
 	case PAGE_BASS_FREQ:
-		SSD1306_GotoXY(0, 0);
-		SSD1306_Puts("Bass", &Font_11x18, SSD1306_PX_CLR_WHITE);
+		SSD1306_GotoXY(1, 0);
+		SSD1306_Puts("Bass", &Font_11x18, FONT_CLR);
 		SSD1306_GotoXY(0, 20);
-		SSD1306_Puts(" freq", &Font_7x10, SSD1306_PX_CLR_WHITE);
+		SSD1306_Puts(" freq", &Font_7x10, FONT_CLR);
+
+		SSD1306_GotoXY(70, 7);
+		get_audio_value_str(AUDIO_CONTROL_BASS_FREQ, &string_ptr);
+		SSD1306_Puts(string_ptr, &Font_11x18, FONT_CLR);
 		break;
 
 	case PAGE_TREBLE_FREQ:
-		SSD1306_GotoXY(0, 0);
-		SSD1306_Puts("Treb", &Font_11x18, SSD1306_PX_CLR_WHITE);
+		SSD1306_GotoXY(1, 0);
+		SSD1306_Puts("Treb", &Font_11x18, FONT_CLR);
 		SSD1306_GotoXY(0, 20);
-		SSD1306_Puts(" freq", &Font_7x10, SSD1306_PX_CLR_WHITE);
+		SSD1306_Puts(" freq", &Font_7x10, FONT_CLR);
+
+		SSD1306_GotoXY(70, 7);
+		get_audio_value_str(AUDIO_CONTROL_TREB_FREQ, &string_ptr);
+		SSD1306_Puts(string_ptr, &Font_11x18, FONT_CLR);
 		break;
 	}
 
@@ -135,25 +173,47 @@ static void show_page(Page page) {
 }
 
 static void key_pressed(Button btn) {
-	if (btn == BTN_RIGHT) {
-		active_page++;
-		if (active_page >= PAGE_CNT) {
-			active_page = 0;
+
+	if (is_page_selected) {
+		if (btn == BTN_RIGHT) {
+			audio_increase(active_page);
+		} else if (btn == BTN_LEFT) {
+			audio_decrease(active_page);
+		}
+
+	} else {
+		if (btn == BTN_RIGHT) {
+			active_page++;
+			if (active_page >= PAGE_CNT) {
+				active_page = 0;
+			}
+		} else if (btn == BTN_LEFT) {
+			active_page--;
+			if (active_page >= PAGE_CNT) {
+				active_page = PAGE_CNT - 1;
+			}
 		}
 	}
 
-	if (btn == BTN_LEFT) {
-		active_page--;
-		if (active_page >= PAGE_CNT) {
-			active_page = PAGE_CNT - 1;
-		}
+	if (btn == BTN_MIDDLE) {
+		is_page_selected = !is_page_selected;
 	}
 
 	show_page(active_page);
 }
 
 static void key_hold(Button btn) {
+	if (is_page_selected) {
+		if (btn == BTN_RIGHT) {
+			audio_increase(active_page);
+		} else if (btn == BTN_LEFT) {
+			audio_decrease(active_page);
+		}
 
+		if (btn != BTN_MIDDLE) {
+			show_page(active_page);
+		}
+	}
 }
 
 void ui_task(void) {
