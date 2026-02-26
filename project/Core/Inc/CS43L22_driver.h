@@ -50,3 +50,10 @@ I2sAudioState get_audio_state();
 int audio_set_hp_volume_db(int16_t db_256);
 int audio_set_hp_mute(uint8_t mute);
 
+// value in the tone gain is a specially offsetted value unique to CS43L22 tone control
+// both needs to be set in the same register
+int audio_set_bass_treb_gain(uint8_t bass, uint8_t treb);
+
+// both needs to be set in the same register
+int audio_set_bass_treb_freq(uint8_t bass_id, uint8_t treb_id);
+

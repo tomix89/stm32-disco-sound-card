@@ -26,10 +26,11 @@
  */
 
 #include "audio_controls.h"
+#include "CS43L22_driver.h"
 #include <stdio.h> // sprintf()
 
 #define DIVISOR 	10
-// these all are x10 the real world value so we can have 0.5
+// these all are x10 (DIVISOR) of the real world value so we can have 0.5 and still somewhat human readable
 #define TONE_MAX 	120  // +12.0dB
 #define TONE_MIN   -105  // -10.5dB
 #define TONE_STEP    15  //   1.5dB
@@ -43,6 +44,36 @@ const char *const bass_freqs[TONE_FREQ_CNT] = { " 50Hz", "100Hz", "200Hz", "250H
 const char *const treb_freqs[TONE_FREQ_CNT] = { " 5kHz", " 7kHz", "10kHz", "15kHz" };
 
 char string_buffer[8]; // for the audio values as string
+
+// internal DIVISOR offseted value comes in
+static inline uint8_t convert_to_tone_gain(int16_t value) {
+	// the values are: 0b0000 -> +12.0dB
+	//                        ...
+	//                 0b0111 ->  +1.5dB
+	//                 0b1000 ->   0.0dB
+	//                 0b1001 ->  -1.5dB
+	//                        ...
+	//                 0b1111 -> -10.5dB
+
+	return (TONE_MAX - value) / 15;
+}
+
+static void update_audio_codec(AudioControl control) {
+	switch (control) {
+	case AUDIO_CONTROL_BASS:
+	case AUDIO_CONTROL_TREB:
+		audio_set_bass_treb_gain(
+				convert_to_tone_gain(control_value[AUDIO_CONTROL_BASS]),
+				convert_to_tone_gain(control_value[AUDIO_CONTROL_TREB]));
+		break;
+
+	case AUDIO_CONTROL_BASS_FREQ:
+	case AUDIO_CONTROL_TREB_FREQ:
+		audio_set_bass_treb_freq(control_value[AUDIO_CONTROL_BASS_FREQ],
+				control_value[AUDIO_CONTROL_TREB_FREQ]);
+		break;
+	}
+}
 
 void audio_increase(AudioControl control) {
 	switch (control) {
@@ -62,6 +93,8 @@ void audio_increase(AudioControl control) {
 		}
 		break;
 	}
+
+	update_audio_codec(control);
 }
 
 void audio_decrease(AudioControl control) {
@@ -82,11 +115,13 @@ void audio_decrease(AudioControl control) {
 		}
 		break;
 	}
+
+	update_audio_codec(control);
 }
 
 // format value to dB
-static inline void format_db(int16_t current_value, char** ptr) {
-	int16_t front =  current_value / DIVISOR;
+static inline void format_db(int16_t current_value, char **ptr) {
+	int16_t front = current_value / DIVISOR;
 	int8_t back = abs(current_value - front * DIVISOR);
 
 	uint8_t pos = 0;
@@ -103,7 +138,7 @@ static inline void format_db(int16_t current_value, char** ptr) {
 	*ptr = string_buffer;
 }
 
-void get_audio_value_str(AudioControl control, char** ptr) {
+void get_audio_value_str(AudioControl control, char **ptr) {
 	int16_t current_value = control_value[control];
 
 	switch (control) {

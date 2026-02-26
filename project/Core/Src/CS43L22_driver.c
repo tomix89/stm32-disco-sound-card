@@ -190,6 +190,26 @@ int audio_set_hp_mute(uint8_t mute) {
 	  return success != 0;
 }
 
+int audio_set_bass_treb_gain(uint8_t bass, uint8_t treb) {
+	uint8_t value = (treb & 0x0F)<<4 | (bass & 0x0F);
+	uint8_t success = 0;
+	success += codec_i2c_write_reg(CS43L22_REG_TONE_CTL, value);
+
+	// if there was any error it will be non zero
+	return success != 0;
+}
+
+
+int audio_set_bass_treb_freq(uint8_t bass_id, uint8_t treb_id) {
+	uint8_t value = 0x01; // beep off, beep mix disabled, tone control on
+	value |= (treb_id & 0x03)<<3 | (bass_id & 0x03)<<1;
+	uint8_t success = 0;
+	success += codec_i2c_write_reg(CS43L22_REG_BEEP_TONE_CFG, value);
+
+	// if there was any error it will be non zero
+	return success != 0;
+}
+
 //--------------------------------------------------------------------
 //----------------- only for used internally in CS43L22_driver -------
 //--------------------------------------------------------------------
