@@ -32,8 +32,6 @@
 #include <stdio.h> // printf()
 #include <stdbool.h>
 
-SSD1306_t SSD1306_Disp;
-
 typedef enum {
 	BTN_LEFT = 0, BTN_MIDDLE, BTN_RIGHT, BTN_COUNT
 } Button;
@@ -166,10 +164,7 @@ static void show_page(UiPage page) {
 		break;
 	}
 
-	if (SSD1306_UpdateScreen() == SSD1306_SPI_ERROR) {
-		/* Program enters here only when HAL_SPI_Transmit_DMA function call fails */
-		Error_Handler();
-	};
+	SSD1306_UpdateScreen();
 }
 
 static void key_pressed(Button btn) {
@@ -228,3 +223,6 @@ void ui_task(void) {
 	update_button(BTN_USR_R_GPIO_Port, BTN_USR_R_Pin, BTN_RIGHT);
 }
 
+void ui_init(void) {
+	show_page(active_page);
+}

@@ -31,8 +31,26 @@
 /* Handle for SPI communication peripheral */
 static SPI_HandleTypeDef *hspi;
 
-/* This variable should be defined in main */
-extern SSD1306_t SSD1306_Disp;
+/*******************************************************
+************** SSD1306 Config Structures ***************
+*******************************************************/
+
+typedef struct {
+  uint16_t CurrentX;
+  uint16_t CurrentY;
+  uint8_t Inverted;
+  uint8_t Initialized;
+  volatile uint8_t state;
+} SSD1306_t;
+SSD1306_t SSD1306_Disp;
+
+// State macros - set when data from buffer is being loaded */
+typedef enum {
+	SSD1306_STATE_READY=0,
+	SSD1306_STATE_BUSY,
+	SSD1306_SPI_ERROR
+} SSD1306_state_t;
+
 
 /******************************************************
 *** Size of SSD1306 buffer defined from ssd1306.h
@@ -783,42 +801,37 @@ void ssd1306_SPI_WriteCmd(uint8_t command)
  * @brief  Fills the display data buffer with new screen using DMA to transfer (length is size of SSD1306 buffer defined in ssd1306.c)
  * @param  uint8_t* pTxBuffer - pointer to the data buffer
  */
-uint8_t ssd1306_SPI_WriteDisp(uint8_t *pTxBuffer)
-{
-	uint8_t state = SSD1306_Disp.state;
-
-	if (state == SSD1306_STATE_READY)
-	{
-		/* Set state to busy */
-		SSD1306_Disp.state = SSD1306_STATE_BUSY;
-
-		SSD1306_CMD_ACCESS();
-		SSD1306_SS_LOW();
-
-		// this resets the cursor on the HW to 0,0
-		SSD1306_SPI_WRITE_CMD(0x21);
-		SSD1306_SPI_WRITE_CMD(0x00);
-		SSD1306_SPI_WRITE_CMD(0x7F);
-
-		SSD1306_SPI_WRITE_CMD(0x22);
-		SSD1306_SPI_WRITE_CMD(0x00);
-		SSD1306_SPI_WRITE_CMD(0x07);
-
-
+uint8_t ssd1306_SPI_WriteDisp(uint8_t *pTxBuffer) {
+	// newer data present, stop sending the old one
+	if (SSD1306_Disp.state == SSD1306_STATE_BUSY) {
 		SSD1306_SS_HIGH();
-
-		/* Set D/C high for data buffer access */
-		SSD1306_DATA_ACCESS();
-		SSD1306_SS_LOW();
-
-		/* DMA enabled send with SPI - callback function run when complete */
-		if (HAL_SPI_Transmit_DMA(hspi, pTxBuffer, (uint16_t)sizeof(SSD1306_Buffer)) != HAL_OK)
-		{
-			SSD1306_Disp.state = SSD1306_SPI_ERROR;
-		}
+		HAL_SPI_DMAStop(hspi);
 	}
 
-	return state;
+	SSD1306_Disp.state = SSD1306_STATE_BUSY;
+
+	SSD1306_CMD_ACCESS();
+	SSD1306_SS_LOW();
+	// this resets the cursor on the HW to 0,0
+	SSD1306_SPI_WRITE_CMD(0x21);
+	SSD1306_SPI_WRITE_CMD(0x00);
+	SSD1306_SPI_WRITE_CMD(0x7F);
+
+	SSD1306_SPI_WRITE_CMD(0x22);
+	SSD1306_SPI_WRITE_CMD(0x00);
+	SSD1306_SPI_WRITE_CMD(0x07);
+	SSD1306_SS_HIGH();
+
+	// Set D/C high for data buffer access
+	SSD1306_DATA_ACCESS();
+	SSD1306_SS_LOW();
+
+	// DMA enabled send with SPI - callback function run when complete
+	if (HAL_SPI_Transmit_DMA(hspi, pTxBuffer, (uint16_t)sizeof(SSD1306_Buffer)) != HAL_OK) {
+		SSD1306_Disp.state = SSD1306_SPI_ERROR;
+	}
+
+	return SSD1306_Disp.state;
 }
 
 /* Invert display by writing command to SSD1306 */

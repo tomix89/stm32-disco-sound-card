@@ -194,26 +194,8 @@ extern C
 */
 #define SSD1306_CLK_VCOM_VALUE 0x20
 
-  /*******************************************************
-************** SSD1306 Config Structures ***************
-*******************************************************/
 
-  /* Private SSD1306 structure */
-  typedef struct
-  {
-    uint16_t CurrentX;
-    uint16_t CurrentY;
-    uint8_t Inverted;
-    uint8_t Initialized;
-    volatile uint8_t state;
-  } SSD1306_t;
-
-/* State macros - set when data from buffer is being loaded */
-#define SSD1306_STATE_READY 0
-#define SSD1306_STATE_BUSY 1
-#define SSD1306_SPI_ERROR 2
-
-  /**********************************************************
+/**********************************************************
 ********** SSD1306 Driver Functions API - Display Ctrl
 **********************************************************/
 
