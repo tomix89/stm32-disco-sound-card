@@ -36,6 +36,7 @@ SOFTWARE.
 #include "common_types.h"
 #include "usb_handler.h"
 #include "CS43L22_driver.h"
+#include "audio_controls.h"
 #include "ssd1306.h"
 #include "UI_control.h"
 
@@ -159,10 +160,12 @@ int main(void)
   tusb_init(BOARD_TUD_RHPORT, &dev_init);
   TU_LOG1("USB running\r\n");
 
-  if (audio_init(&hi2c1, &hi2s3)) {
+  // init the audio codec
+  if (CS43L22_init(&hi2c1, &hi2s3)) {
 	  Error_Handler();
   }
 
+  audio_init();
   ui_init();
 
   printf("init done\n");

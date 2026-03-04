@@ -133,7 +133,7 @@ HAL_StatusTypeDef codec_i2c_read_reg(uint8_t addr, uint8_t *val) {
 //---------------------------- middle level control -----------------------------------------------------
 //-------------------------------------------------------------------------------------------------------
 
-int audio_init(void *i2c, void *i2s) {
+int CS43L22_init(void *i2c, void *i2s) {
 	uint8_t success = 0;
 	hi2c = i2c;
 	hi2s = i2s;
@@ -163,7 +163,7 @@ int audio_init(void *i2c, void *i2s) {
 	return success != 0;
 }
 
-int audio_set_hp_volume_db(int16_t db_256) {
+int CS43L22_set_hp_volume_db(int16_t db_256) {
   db_256 = MIN(db_256, HP_MAX_VOLUME_DB << 8);
   db_256 = MAX(db_256, HP_MIN_VOLUME_DB << 8);
 
@@ -181,7 +181,7 @@ int audio_set_hp_volume_db(int16_t db_256) {
   return success != 0;
 }
 
-int audio_set_hp_mute(uint8_t mute) {
+int CS43L22_set_hp_mute(uint8_t mute) {
 	  uint8_t value = mute > 0 ? 0b11000000 : 0b00000000;
 	  uint8_t success = 0;
 	  success += codec_i2c_write_reg(CS43L22_REG_PLAYBACK_CTL2, value);
@@ -190,7 +190,7 @@ int audio_set_hp_mute(uint8_t mute) {
 	  return success != 0;
 }
 
-int audio_set_bass_treb_gain(uint8_t bass, uint8_t treb) {
+int CS43L22_set_bass_treb_gain(uint8_t bass, uint8_t treb) {
 	uint8_t value = (treb & 0x0F)<<4 | (bass & 0x0F);
 	uint8_t success = 0;
 	success += codec_i2c_write_reg(CS43L22_REG_TONE_CTL, value);
@@ -199,8 +199,7 @@ int audio_set_bass_treb_gain(uint8_t bass, uint8_t treb) {
 	return success != 0;
 }
 
-
-int audio_set_bass_treb_freq(uint8_t bass_id, uint8_t treb_id) {
+int CS43L22_set_bass_treb_freq(uint8_t bass_id, uint8_t treb_id) {
 	uint8_t value = 0x01; // beep off, beep mix disabled, tone control on
 	value |= (treb_id & 0x03)<<3 | (bass_id & 0x03)<<1;
 	uint8_t success = 0;

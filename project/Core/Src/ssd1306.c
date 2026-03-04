@@ -23,6 +23,7 @@
    ----------------------------------------------------------------------
  */
 #include "ssd1306.h"
+#include <stdlib.h> // abs()
 
 /*********************************************************************
 ******** Extern variables (must be defined in your main program!)
@@ -40,6 +41,7 @@ typedef struct {
   uint16_t CurrentY;
   uint8_t Inverted;
   uint8_t Initialized;
+  uint8_t IsOn;
   volatile uint8_t state;
 } SSD1306_t;
 SSD1306_t SSD1306_Disp;
@@ -68,8 +70,6 @@ static uint8_t SSD1306_Buffer[SSD1306_WIDTH * SSD1306_HEIGHT / 8];
 
 #define SSD1306_SPI_TIMEOUT 1000
 
-/* Absolute value */
-#define ABS(x) ((x) > 0 ? (x) : -(x))
 
 /*********************************************************
 ********** SSD1306 Driver Functions API - Display Ctrl
@@ -121,9 +121,6 @@ uint8_t SSD1306_Init(void *spi)
 	{
 		return SSD1306_FAILED;
 	}
-
-	/* Prepare to send command bits */
-	SSD1306_CMD_ACCESS();
 
 	/* Display off command */
 	SSD1306_SPI_WRITE_CMD(SSD1306_CMD_DISP_OFF);
@@ -179,6 +176,7 @@ uint8_t SSD1306_Init(void *spi)
 
 	/* Initialized OK */
 	SSD1306_Disp.Initialized = 1;
+	SSD1306_Disp.IsOn = 1;
 	SSD1306_Disp.state = SSD1306_STATE_READY;
 
 	/* Return OK */
@@ -186,9 +184,9 @@ uint8_t SSD1306_Init(void *spi)
 }
 
 /**
- * @brief  DeInitialize and power down SSD1306 OLED
+ * @brief  Power down the SSD1306 OLED
  */
-uint8_t SSD1306_DeInit(void)
+uint8_t SSD1306_PowerOff(void)
 {
 	/* Check that display is in initialized state */
 	if (!SSD1306_Disp.Initialized)
@@ -196,16 +194,41 @@ uint8_t SSD1306_DeInit(void)
 		return SSD1306_FAILED;
 	}
 
-	/* Prepare to send command bits */
-	SSD1306_CMD_ACCESS();
+	if (SSD1306_Disp.state == SSD1306_STATE_BUSY) {
+		HAL_SPI_DMAStop(hspi);
+	}
 
 	/* Display off command */
 	SSD1306_SPI_WRITE_CMD(SSD1306_CMD_DISP_OFF);
 
 	/* Set structure values */
-	SSD1306_Disp.Initialized = 0;
+	SSD1306_Disp.IsOn = 0;
 
 	return SSD1306_OK;
+}
+
+/**
+ * @brief  Power on the SSD1306 OLED
+ */
+uint8_t SSD1306_PowerOn(void)
+{
+	/* Check that display is in initialized state */
+	if (!SSD1306_Disp.Initialized)
+	{
+		return SSD1306_FAILED;
+	}
+
+	/* Display off command */
+	SSD1306_SPI_WRITE_CMD(SSD1306_CMD_DISP_ON);
+
+	/* Set structure values */
+	SSD1306_Disp.IsOn = 1;
+
+	return SSD1306_OK;
+}
+
+uint8_t SSD1306_IsOn(void) {
+	return SSD1306_Disp.IsOn;
 }
 
 /** 
@@ -219,21 +242,6 @@ void SSD1306_Reset(void)
 }
 
 /** 
- * @brief  Toggle the display on and off
- */
-void SSD1306_Switch(void)
-{
-	if (SSD1306_Disp.Initialized)
-	{
-		SSD1306_DeInit();
-	}
-	else
-	{
-		SSD1306_Init(hspi);
-	}
-}
-
-/** 
  * @brief  Updates buffer from internal RAM to OLED with SSD1306 in horizontal addressing mode (blocks until interrupt function initialized)
  * @note   This function must be called each time you do some changes to OLED, to update buffer from RAM to OLED
  */
@@ -243,23 +251,6 @@ uint8_t SSD1306_UpdateScreen(void)
 	return ssd1306_SPI_WriteDisp(SSD1306_Buffer);
 }
 
-/**
- * @brief  Toggles pixels invertion inside internal RAM
- * @note   @ref SSD1306_UpdateScreen() must be called after that in order to see updated LCD screen
- */
-void SSD1306_ToggleInvert(void)
-{
-	uint16_t i;
-
-	/* Toggle invert */
-	SSD1306_Disp.Inverted = !SSD1306_Disp.Inverted;
-
-	/* Do memory toggle */
-	for (i = 0; i < sizeof(SSD1306_Buffer); i++)
-	{
-		SSD1306_Buffer[i] = ~SSD1306_Buffer[i];
-	}
-}
 
 /** 
  * @brief  Fills entire OLED buffer with desired color
@@ -617,8 +608,8 @@ void SSD1306_DrawFilledTriangle(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t 
 			yinc1 = 0, yinc2 = 0, den = 0, num = 0, numadd = 0, numpixels = 0,
 			curpixel = 0;
 
-	deltax = ABS(x2 - x1);
-	deltay = ABS(y2 - y1);
+	deltax = abs(x2 - x1);
+	deltay = abs(y2 - y1);
 	x = x1;
 	y = y1;
 
@@ -810,14 +801,12 @@ uint8_t ssd1306_SPI_WriteDisp(uint8_t *pTxBuffer) {
 
 	SSD1306_Disp.state = SSD1306_STATE_BUSY;
 
-	SSD1306_CMD_ACCESS();
-	SSD1306_SS_LOW();
 	// this resets the cursor on the HW to 0,0
-	SSD1306_SPI_WRITE_CMD(0x21);
+	SSD1306_SPI_WRITE_CMD(SSD1306_CMD_COLUMN_ADDRESS);
 	SSD1306_SPI_WRITE_CMD(0x00);
 	SSD1306_SPI_WRITE_CMD(0x7F);
 
-	SSD1306_SPI_WRITE_CMD(0x22);
+	SSD1306_SPI_WRITE_CMD(SSD1306_CMD_PAGE_ADDRESS);
 	SSD1306_SPI_WRITE_CMD(0x00);
 	SSD1306_SPI_WRITE_CMD(0x07);
 	SSD1306_SS_HIGH();
@@ -837,7 +826,7 @@ uint8_t ssd1306_SPI_WriteDisp(uint8_t *pTxBuffer) {
 /* Invert display by writing command to SSD1306 */
 void SSD1306_InvertDisplay(uint8_t EnOrDi)
 {
-	SSD1306_CMD_ACCESS();
+	SSD1306_Disp.Inverted = EnOrDi;
 
 	if (EnOrDi == SSD1306_ENABLE)
 	{
@@ -855,8 +844,6 @@ void SSD1306_InvertDisplay(uint8_t EnOrDi)
 
 void SSD1306_ScrollRight(uint8_t start_row, uint8_t end_row)
 {
-	SSD1306_CMD_ACCESS();
-
 	SSD1306_SPI_WRITE_CMD(SSD1306_RIGHT_HORIZONTAL_SCROLL); // send 0x26
 	SSD1306_SPI_WRITE_CMD(0x00);							// send dummy
 	SSD1306_SPI_WRITE_CMD(start_row);						// start page address
@@ -869,8 +856,6 @@ void SSD1306_ScrollRight(uint8_t start_row, uint8_t end_row)
 
 void SSD1306_ScrollLeft(uint8_t start_row, uint8_t end_row)
 {
-	SSD1306_CMD_ACCESS();
-
 	SSD1306_SPI_WRITE_CMD(SSD1306_LEFT_HORIZONTAL_SCROLL); // send 0x26
 	SSD1306_SPI_WRITE_CMD(0x00);						   // send dummy
 	SSD1306_SPI_WRITE_CMD(start_row);					   // start page address
@@ -883,8 +868,6 @@ void SSD1306_ScrollLeft(uint8_t start_row, uint8_t end_row)
 
 void SSD1306_Scrolldiagright(uint8_t start_row, uint8_t end_row)
 {
-	SSD1306_CMD_ACCESS();
-
 	SSD1306_SPI_WRITE_CMD(SSD1306_SET_VERTICAL_SCROLL_AREA); // sect the area
 	SSD1306_SPI_WRITE_CMD(0x00);							 // write dummy
 	SSD1306_SPI_WRITE_CMD(SSD1306_HEIGHT);
@@ -900,8 +883,6 @@ void SSD1306_Scrolldiagright(uint8_t start_row, uint8_t end_row)
 
 void SSD1306_Scrolldiagleft(uint8_t start_row, uint8_t end_row)
 {
-	SSD1306_CMD_ACCESS();
-
 	SSD1306_SPI_WRITE_CMD(SSD1306_SET_VERTICAL_SCROLL_AREA); // sect the area
 	SSD1306_SPI_WRITE_CMD(0x00);							 // write dummy
 	SSD1306_SPI_WRITE_CMD(SSD1306_HEIGHT);
@@ -917,8 +898,6 @@ void SSD1306_Scrolldiagleft(uint8_t start_row, uint8_t end_row)
 
 void SSD1306_Stopscroll(void)
 {
-	SSD1306_CMD_ACCESS();
-
 	SSD1306_SPI_WRITE_CMD(SSD1306_DEACTIVATE_SCROLL);
 }
 

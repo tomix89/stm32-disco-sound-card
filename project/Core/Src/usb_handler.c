@@ -180,7 +180,7 @@ static bool audio10_set_req_entity(tusb_control_request_t const *p_request, uint
             // channelNum=0 is the master channel
             // then 1,2 are L and R
             if (channelNum == 0) {
-            	audio_set_hp_mute(mute[channelNum]);
+            	CS43L22_set_hp_mute(mute[channelNum]);
             }
 
             return true;
@@ -196,12 +196,12 @@ static bool audio10_set_req_entity(tusb_control_request_t const *p_request, uint
             TU_VERIFY(p_request->wLength == 2);
 
             volume_db_256[channelNum] = (int16_t)tu_unaligned_read16(pBuff);
-            TU_LOG2("    Set Volume: %d dB of channel: %u\r\n", volume_db_256[channelNum]/256, channelNum);
+            printf("    Set Volume: %d dB of channel: %u\r\n", volume_db_256[channelNum]/256, channelNum);
 
             // channelNum=0 is the master volume
             // then 1,2 are L and R
             if (channelNum == 0) {
-            	audio_set_hp_volume_db(volume_db_256[channelNum]);
+            	CS43L22_set_hp_volume_db(volume_db_256[channelNum]);
             }
 
             return true;
@@ -237,14 +237,14 @@ static bool audio10_get_req_entity(uint8_t rhport, tusb_control_request_t const 
       case AUDIO10_FU_CTRL_VOLUME:
         switch (p_request->bRequest) {
           case AUDIO10_CS_REQ_GET_CUR:
-        	  TU_LOG2("    Get Volume of channel: %u, %u\r\n", channelNum, volume_db_256[channelNum]/256);
+        	  printf("    Get Volume of channel: %u, %u\r\n", channelNum, volume_db_256[channelNum]/256);
             {
               int16_t vol = volume_db_256[channelNum];
               return tud_audio_buffer_and_schedule_control_xfer(rhport, p_request, &vol, sizeof(vol)); // 1/256 dB units
             }
 
           case AUDIO10_CS_REQ_GET_MIN:
-        	  TU_LOG2("    Get Volume min of channel: %u\r\n", channelNum);
+        	  printf("    Get Volume min of channel: %u\r\n", channelNum);
             {
               int16_t min = HP_MIN_VOLUME_DB;
               min = min * 256; // convert to 1/256 dB units
@@ -252,7 +252,7 @@ static bool audio10_get_req_entity(uint8_t rhport, tusb_control_request_t const 
             }
 
           case AUDIO10_CS_REQ_GET_MAX:
-        	  TU_LOG2("    Get Volume max of channel: %u\r\n", channelNum);
+        	  printf("    Get Volume max of channel: %u\r\n", channelNum);
             {
               int16_t max = HP_MAX_VOLUME_DB;
               max = max * 256; // convert to 1/256 dB units
@@ -260,7 +260,7 @@ static bool audio10_get_req_entity(uint8_t rhport, tusb_control_request_t const 
             }
 
           case AUDIO10_CS_REQ_GET_RES:
-        	  TU_LOG2("    Get Volume res of channel: %u\r\n", channelNum);
+        	  printf("    Get Volume res of channel: %u\r\n", channelNum);
             {
               int16_t res = HP_VOLUME_RESOLUTION_DB;
               res = res * 256; // in 1/256 dB units

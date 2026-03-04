@@ -36,6 +36,10 @@ typedef enum {
 	BTN_LEFT = 0, BTN_MIDDLE, BTN_RIGHT, BTN_COUNT
 } Button;
 
+// timestamp of the last button action
+static uint32_t last_button_action_ms = 0;
+#define SCREEN_TIMEOUT_MS  15000U
+
 // Timing thresholds (in ms)
 #define PRESS_THRESHOLD  5
 #define HOLD_START       350
@@ -68,6 +72,11 @@ bool is_page_selected = false;
 static void key_pressed(Button btn);
 static void key_hold(Button btn);
 
+inline static bool isScreenTimeout(uint32_t curr_ms) {
+	return (((uint32_t) (curr_ms - last_button_action_ms))
+			> SCREEN_TIMEOUT_MS);
+}
+
 static inline void print_us() {
 	uint32_t ticks_per_us = SystemCoreClock / 1000000;
 	uint32_t elapsed_us = (SysTick->LOAD - SysTick->VAL) / ticks_per_us;
@@ -77,7 +86,7 @@ static inline void print_us() {
 }
 
 // Call this every 1 ms
-static void update_button(GPIO_TypeDef *port, uint16_t pin, uint8_t btn_id) {
+static void update_button(GPIO_TypeDef *port, uint16_t pin, uint8_t btn_id, uint32_t curr_ms) {
 	// buttons are on pull up -> active low
 	bool is_down = (HAL_GPIO_ReadPin(port, pin) == GPIO_PIN_RESET);
 
@@ -88,6 +97,7 @@ static void update_button(GPIO_TypeDef *port, uint16_t pin, uint8_t btn_id) {
 			// Trigger "pressed" event once after PRESS_THRESHOLD
 			if (btn_state[btn_id].press_cntr >= PRESS_THRESHOLD) {
 				key_pressed(btn_id);
+				last_button_action_ms = curr_ms;
 				btn_state[btn_id].pressed_event_sent = true;
 				btn_state[btn_id].hold_cntr = HOLD_START; // start count down
 			}
@@ -98,6 +108,7 @@ static void update_button(GPIO_TypeDef *port, uint16_t pin, uint8_t btn_id) {
 			// First hold event after HOLD_START
 			if (btn_state[btn_id].hold_cntr == 0) {
 				key_hold(btn_id);
+				last_button_action_ms = curr_ms;
 				btn_state[btn_id].hold_cntr = HOLD_REPEAT; // restart for repeat
 			}
 		}
@@ -168,36 +179,42 @@ static void show_page(UiPage page) {
 }
 
 static void key_pressed(Button btn) {
+	if (SSD1306_IsOn()) {
+		if (is_page_selected) {
+			if (btn == BTN_RIGHT) {
+				audio_increase(active_page);
+			} else if (btn == BTN_LEFT) {
+				audio_decrease(active_page);
+			}
 
-	if (is_page_selected) {
-		if (btn == BTN_RIGHT) {
-			audio_increase(active_page);
-		} else if (btn == BTN_LEFT) {
-			audio_decrease(active_page);
+		} else {
+			if (btn == BTN_RIGHT) {
+				active_page++;
+				if (active_page >= PAGE_CNT) {
+					active_page = 0;
+				}
+			} else if (btn == BTN_LEFT) {
+				active_page--;
+				if (active_page >= PAGE_CNT) {
+					active_page = PAGE_CNT - 1;
+				}
+			}
 		}
 
+		if (btn == BTN_MIDDLE) {
+			is_page_selected = !is_page_selected;
+		}
 	} else {
-		if (btn == BTN_RIGHT) {
-			active_page++;
-			if (active_page >= PAGE_CNT) {
-				active_page = 0;
-			}
-		} else if (btn == BTN_LEFT) {
-			active_page--;
-			if (active_page >= PAGE_CNT) {
-				active_page = PAGE_CNT - 1;
-			}
-		}
+		SSD1306_PowerOn();
 	}
-
-	if (btn == BTN_MIDDLE) {
-		is_page_selected = !is_page_selected;
-	}
-
 	show_page(active_page);
 }
 
 static void key_hold(Button btn) {
+	if (!SSD1306_IsOn()) {
+		return;
+	}
+
 	if (is_page_selected) {
 		if (btn == BTN_RIGHT) {
 			audio_increase(active_page);
@@ -214,13 +231,22 @@ static void key_hold(Button btn) {
 void ui_task(void) {
 	static uint32_t last_ms = 0;
 	uint32_t curr_ms = HAL_GetTick();
-	if (last_ms == curr_ms)
+	if (last_ms == curr_ms) {
 		return; // not enough time
+	}
 	last_ms = curr_ms;
 
-	update_button(BTN_USR_L_GPIO_Port, BTN_USR_L_Pin, BTN_LEFT);
-	update_button(BTN_USR_M_GPIO_Port, BTN_USR_M_Pin, BTN_MIDDLE);
-	update_button(BTN_USR_R_GPIO_Port, BTN_USR_R_Pin, BTN_RIGHT);
+	update_button(BTN_USR_L_GPIO_Port, BTN_USR_L_Pin, BTN_LEFT,   curr_ms);
+	update_button(BTN_USR_M_GPIO_Port, BTN_USR_M_Pin, BTN_MIDDLE, curr_ms);
+	update_button(BTN_USR_R_GPIO_Port, BTN_USR_R_Pin, BTN_RIGHT,  curr_ms);
+
+	if (isScreenTimeout(curr_ms)) {
+
+	if (SSD1306_IsOn()) {
+		SSD1306_PowerOff();
+		is_page_selected = false;
+	}
+	}
 }
 
 void ui_init(void) {

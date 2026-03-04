@@ -36,6 +36,9 @@ typedef enum {
 	AUDIO_CONTROL_CNT
 } AudioControl;
 
+// sends all tone related settings to the codec
+void audio_init();
+
 // call to increase the given audio control by 1 step
 void audio_increase(AudioControl control);
 // call to decrease the given audio control by 1 step

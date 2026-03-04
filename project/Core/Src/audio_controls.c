@@ -28,6 +28,7 @@
 #include "audio_controls.h"
 #include "CS43L22_driver.h"
 #include <stdio.h> // sprintf()
+#include <stdlib.h> // abs()
 
 #define DIVISOR 	10
 // these all are x10 (DIVISOR) of the real world value so we can have 0.5 and still somewhat human readable
@@ -62,14 +63,14 @@ static void update_audio_codec(AudioControl control) {
 	switch (control) {
 	case AUDIO_CONTROL_BASS:
 	case AUDIO_CONTROL_TREB:
-		audio_set_bass_treb_gain(
+		CS43L22_set_bass_treb_gain(
 				convert_to_tone_gain(control_value[AUDIO_CONTROL_BASS]),
 				convert_to_tone_gain(control_value[AUDIO_CONTROL_TREB]));
 		break;
 
 	case AUDIO_CONTROL_BASS_FREQ:
 	case AUDIO_CONTROL_TREB_FREQ:
-		audio_set_bass_treb_freq(control_value[AUDIO_CONTROL_BASS_FREQ],
+		CS43L22_set_bass_treb_freq(control_value[AUDIO_CONTROL_BASS_FREQ],
 				control_value[AUDIO_CONTROL_TREB_FREQ]);
 		break;
 	}
@@ -118,6 +119,16 @@ void audio_decrease(AudioControl control) {
 
 	update_audio_codec(control);
 }
+
+void audio_init() {
+	// both bass and treble is in a same register so they both will be updated
+	update_audio_codec(AUDIO_CONTROL_BASS);
+	update_audio_codec(AUDIO_CONTROL_BASS_FREQ);
+}
+
+//------------------------------------------------------------------------------
+//-------------------------- string formatters for UI --------------------------
+//------------------------------------------------------------------------------
 
 // format value to dB
 static inline void format_db(int16_t current_value, char **ptr) {

@@ -134,13 +134,15 @@ extern C
 /* 
 * Hardware configurations 
 */
-#define SSD1306_CMD_ADDR_MODE_SET 0x20
-#define SSD1306_CMD_START_LINE 0x40
-#define SSD1306_CMD_SEG_REMAP 0xA0
-#define SSD1306_CMD_COM_SCAN_DIR 0xC0
-#define SSD1306_CMD_MUX_RATIO_SET 0xA8
-#define SSD1306_CMD_DISP_OFFSET_SET 0xD3
-#define SSD1306_COM_HW_CONFIG_SET 0xDA
+#define SSD1306_CMD_ADDR_MODE_SET       0x20
+#define	SSD1306_CMD_COLUMN_ADDRESS      0x21
+#define	SSD1306_CMD_PAGE_ADDRESS        0x22
+#define SSD1306_CMD_START_LINE          0x40
+#define SSD1306_CMD_SEG_REMAP           0xA0
+#define SSD1306_CMD_COM_SCAN_DIR        0xC0
+#define SSD1306_CMD_MUX_RATIO_SET       0xA8
+#define SSD1306_CMD_DISP_OFFSET_SET     0xD3
+#define SSD1306_COM_HW_CONFIG_SET       0xDA
 
 /*
 * Clock configuration
@@ -152,17 +154,17 @@ extern C
 */
 #define SSD1306_CLK_VCOM_SET 0xDB
 
-  /*******************************************************
+ /*******************************************************
 ********** SSD1306 Command Macros
 *******************************************************/
 
 #define SSD1306_DEACTIVATE_SCROLL 0x2E
-#define SSD1306_ACTIVATE_SCROLL 0x2F
+#define SSD1306_ACTIVATE_SCROLL   0x2F
 
 #define SSD1306_RIGHT_HORIZONTAL_SCROLL 0x26
-#define SSD1306_LEFT_HORIZONTAL_SCROLL 0x27
+#define SSD1306_LEFT_HORIZONTAL_SCROLL  0x27
 #define SSD1306_VERTICAL_AND_RIGHT_HORIZONTAL_SCROLL 0x29
-#define SSD1306_VERTICAL_AND_LEFT_HORIZONTAL_SCROLL 0x2A
+#define SSD1306_VERTICAL_AND_LEFT_HORIZONTAL_SCROLL  0x2A
 #define SSD1306_SET_VERTICAL_SCROLL_AREA 0xA3
 
 /*******************************************************
@@ -172,9 +174,9 @@ extern C
 /*
 * Hardware configurations
 */
-#define SSD1306_CONTRAST_VALUE 0x0F
-#define SSD1306_MUX_RATIO_VALUE 0x3F
-#define SSD1306_DISP_OFFSET_VALUE 0x00
+#define SSD1306_CONTRAST_VALUE 		0x0F
+#define SSD1306_MUX_RATIO_VALUE 	0x3F
+#define SSD1306_DISP_OFFSET_VALUE 	0x00
 #define SSD1306_COM_HW_CONFIG_VALUE 0x20
 
 /* Column remap */
@@ -208,19 +210,24 @@ extern C
   uint8_t SSD1306_Init(void *spi);
 
   /**
- * @brief  DeInitialize and power down SSD1306 OLED
+ * @brief  Power down the SSD1306 OLED
  */
-  uint8_t SSD1306_DeInit(void);
+  uint8_t SSD1306_PowerOff(void);
+
+  /**
+ * @brief  Power on the SSD1306 OLED
+ */
+  uint8_t SSD1306_PowerOn(void);
+
+  /**
+ * @brief  Returns 1 when display is initialized e.g. power is on
+ */
+  uint8_t SSD1306_IsOn(void);
 
   /** 
  * @brief  Reset the OLED display
  */
   void SSD1306_Reset(void);
-
-  /** 
- * @brief  Toggle the display on and off
- */
-  void SSD1306_Switch(void);
 
   /** 
  * @brief  Updates buffer from internal RAM to OLED
@@ -232,12 +239,6 @@ extern C
  * @brief  Clears the screen
  */
   void SSD1306_Clear(void);
-
-  /**
- * @brief  Toggles pixels invertion inside internal RAM
- * @note   @ref SSD1306_UpdateScreen() must be called after that in order to see updated LCD screen
- */
-  void SSD1306_ToggleInvert(void);
 
   /** 
  * @brief  Fills entire OLED with desired color
@@ -377,11 +378,7 @@ extern C
  */
   void SSD1306_DrawFilledCircle(int16_t x0, int16_t y0, int16_t r, uint8_t colour);
 
-#ifndef ssd1306_I2C_TIMEOUT
-#define ssd1306_I2C_TIMEOUT 20000
-#endif
-
-  /*************************************************************
+/*************************************************************
 ****** SSD1306 Driver Functions API - Data Communication
 **************************************************************/
 
@@ -409,7 +406,7 @@ extern C
  */
   void SSD1306_DrawBitmap(int16_t x, int16_t y, const unsigned char *bitmap, int16_t w, int16_t h, uint8_t color);
 
-  /*************************************************************
+/*************************************************************
 ****** SSD1306 Driver Functions API - Scrolling functions
 **************************************************************/
 
@@ -423,7 +420,7 @@ extern C
 
   void SSD1306_Stopscroll(void);
 
-  /*************************************************************
+/*************************************************************
 ****** SSD1306 Driver Functions API - Colour Inversion
 **************************************************************/
 
