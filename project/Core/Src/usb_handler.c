@@ -34,6 +34,7 @@
 
 #include "main.h"
 #include "CS43L22_driver.h"
+#include "audio_controls.h"
 
 //--------------------------------------------------------------------+
 // MACRO CONSTANT TYPEDEF PROTOTYPES
@@ -55,12 +56,6 @@ enum {
 static uint32_t blink_interval_ms = BLINK_NOT_MOUNTED;
 
 #define AUDIO_PACKET_LEN    (AUDIO_SAMPLING_RATE / 1000 * CFG_TUD_AUDIO_FUNC_1_N_BYTES_PER_SAMPLE_RX * CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_RX)
-
-// Audio controls
-// Current states
-uint8_t mute[CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_RX + 1];   // +1 for master channel 0
-int16_t volume_db_256[CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_RX + 1];// +1 for master channel 0 in 1/256th of db steps
-
 
 #if CFG_AUDIO_DEBUG
 void audio_debug_task(void);
@@ -173,15 +168,12 @@ static bool audio10_set_req_entity(tusb_control_request_t const *p_request, uint
             // Only 1st form is supported
             TU_VERIFY(p_request->wLength == 1);
 
-            mute[channelNum] = pBuff[0];
-
-            TU_LOG2("    Set Mute: %d of channel: %u\r\n", mute[channelNum], channelNum);
-
-            // channelNum=0 is the master channel
-            // then 1,2 are L and R
-            if (channelNum == 0) {
-            	CS43L22_set_hp_mute(mute[channelNum]);
-            }
+            // channelNum == 0 is the master channel
+            // then 1,2 would be L and R - but we have disabled L/R now
+            TU_VERIFY(channelNum == 0);
+            int8_t mute = pBuff[0];
+            audio_set_mute(mute);
+            printf("    Set Mute: %d of channel: %u\r\n", mute, channelNum);
 
             return true;
 
@@ -195,14 +187,12 @@ static bool audio10_set_req_entity(tusb_control_request_t const *p_request, uint
             // Only 1st form is supported
             TU_VERIFY(p_request->wLength == 2);
 
-            volume_db_256[channelNum] = (int16_t)tu_unaligned_read16(pBuff);
-            printf("    Set Volume: %d dB of channel: %u\r\n", volume_db_256[channelNum]/256, channelNum);
-
-            // channelNum=0 is the master volume
-            // then 1,2 are L and R
-            if (channelNum == 0) {
-            	CS43L22_set_hp_volume_db(volume_db_256[channelNum]);
-            }
+            // channelNum == 0 is the master channel
+            // then 1,2 would be L and R - but we have disabled L/R now
+            TU_VERIFY(channelNum == 0);
+            int16_t volume = (int16_t)tu_unaligned_read16(pBuff);
+            audio_set_volume_usb_pct(volume);
+            printf("    Set Volume: %d pct of channel: %u\r\n", volume, channelNum);
 
             return true;
 
@@ -229,42 +219,42 @@ static bool audio10_get_req_entity(uint8_t rhport, tusb_control_request_t const 
   if (entityID == UAC1_ENTITY_FEATURE_UNIT) {
     switch (ctrlSel) {
       case AUDIO10_FU_CTRL_MUTE:
+      {
         // Audio control mute cur parameter block consists of only one byte - we thus can send it right away
         // There does not exist a range parameter block for mute
-    	  TU_LOG2("    Get Mute of channel: %u, %u\r\n", channelNum, mute[channelNum]);
-        return tud_audio_buffer_and_schedule_control_xfer(rhport, p_request, &mute[channelNum], 1);
+    	int8_t mute = audio_get_mute();
+    	TU_LOG2("    Get Mute of channel: %u, %u\r\n", channelNum, mute);
+        return tud_audio_buffer_and_schedule_control_xfer(rhport, p_request, &mute, 1);
+      }
 
       case AUDIO10_FU_CTRL_VOLUME:
         switch (p_request->bRequest) {
           case AUDIO10_CS_REQ_GET_CUR:
-        	  printf("    Get Volume of channel: %u, %u\r\n", channelNum, volume_db_256[channelNum]/256);
-            {
-              int16_t vol = volume_db_256[channelNum];
-              return tud_audio_buffer_and_schedule_control_xfer(rhport, p_request, &vol, sizeof(vol)); // 1/256 dB units
+          	{
+        	  int16_t volume_pct = audio_get_volume_usb_pct();
+        	  printf("    Get Volume of channel: %u, %u\r\n", channelNum, volume_pct);
+              return tud_audio_buffer_and_schedule_control_xfer(rhport, p_request, &volume_pct, sizeof(volume_pct));
             }
 
           case AUDIO10_CS_REQ_GET_MIN:
-        	  printf("    Get Volume min of channel: %u\r\n", channelNum);
             {
-              int16_t min = HP_MIN_VOLUME_DB;
-              min = min * 256; // convert to 1/256 dB units
+              int16_t min = USB_MIN_VOLUME_PCT;
+              printf("    Get Volume MIN of channel: %u -> %d\r\n", channelNum, min);
               return tud_audio_buffer_and_schedule_control_xfer(rhport, p_request, &min, sizeof(min));
             }
 
           case AUDIO10_CS_REQ_GET_MAX:
-        	  printf("    Get Volume max of channel: %u\r\n", channelNum);
             {
-              int16_t max = HP_MAX_VOLUME_DB;
-              max = max * 256; // convert to 1/256 dB units
+              int16_t max = USB_MAX_VOLUME_PCT;
+              printf("    Get Volume MAX of channel: %u -> %d\r\n", channelNum, max);
               return tud_audio_buffer_and_schedule_control_xfer(rhport, p_request, &max, sizeof(max));
             }
 
           case AUDIO10_CS_REQ_GET_RES:
-        	  printf("    Get Volume res of channel: %u\r\n", channelNum);
             {
-              int16_t res = HP_VOLUME_RESOLUTION_DB;
-              res = res * 256; // in 1/256 dB units
-              return tud_audio_buffer_and_schedule_control_xfer(rhport, p_request, &res, sizeof(res));
+              int16_t step = USB_VOLUME_STEP;
+        	  printf("    Get Volume STEP of channel: %u -> %d\r\n", channelNum, step);
+              return tud_audio_buffer_and_schedule_control_xfer(rhport, p_request, &step, sizeof(step));
             }
             // Unknown/Unsupported control
           default:
@@ -557,8 +547,6 @@ bool tud_audio_rx_done_isr(uint8_t rhport, uint16_t n_bytes_received, uint8_t fu
 // AUDIO Task
 //--------------------------------------------------------------------+
 
-// This task simulates an audio transmit callback, one frame is sent every 1ms.
-// In a real application, this would be replaced with actual I2S transmit callback.
 void audio_task(void) {
   static uint32_t last_ms = 0;
   uint32_t curr_ms = HAL_GetTick();
@@ -613,10 +601,8 @@ void audio_debug_task(void) {
   debug_info.fifo_size = CFG_TUD_AUDIO_FUNC_1_EP_OUT_SW_BUF_SZ;
   debug_info.fifo_count = fifo_count;
   debug_info.fifo_count_avg = (uint16_t) (fifo_count_avg >> 16);
-  for (int i = 0; i < CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_RX + 1; i++) {
-    debug_info.mute[i] = mute[i];
-    debug_info.volume[i] = volume_db_256[i] / 256;
-  }
+  debug_info.mute = audio_get_mute();
+  debug_info.volume = audio_get_volume_usb_pct();
 
   if (tud_hid_ready())
     tud_hid_report(0, &debug_info, sizeof(debug_info));

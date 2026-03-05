@@ -27,16 +27,12 @@ SOFTWARE.
 #pragma once
 
 #include <stdint.h>
+#include "audio_common.h"
 
 typedef enum {
   I2S_AUDIO_STOPPED = 0,
   I2S_AUDIO_STREAMING = 1,
 }I2sAudioState;
-
-
-#define HP_MAX_VOLUME_DB        0
-#define HP_MIN_VOLUME_DB       -102
-#define HP_VOLUME_RESOLUTION_DB 0.5
 
 int CS43L22_init(void *i2c, void *i2s);
 
@@ -44,11 +40,8 @@ void audio_play();
 void audio_stop();
 I2sAudioState get_audio_state();
 
-// set volume has a 1/256th of a db resolution
-// e.g. +10db => 2560
-//      -25db => -6400
-int CS43L22_set_hp_volume_db(int16_t db_256);
-int CS43L22_set_hp_mute(uint8_t mute);
+int CS43L22_set_hp_volume_db(int16_t vol_L, int16_t vol_R);
+int CS43L22_set_hp_mute(int8_t mute);
 
 // value in the tone gain is a specially offsetted value unique to CS43L22 tone control
 // both needs to be set in the same register

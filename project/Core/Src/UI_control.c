@@ -54,7 +54,13 @@ typedef struct {
 static ButtonState btn_state[BTN_COUNT];
 
 typedef enum {
-	PAGE_BASS = 0, PAGE_TREBLE, PAGE_BASS_FREQ, PAGE_TREBLE_FREQ, PAGE_CNT
+	PAGE_BASS = 0,
+	PAGE_TREBLE,
+	PAGE_BASS_FREQ,
+	PAGE_TREBLE_FREQ,
+	PAGE_BALANCE,
+
+	PAGE_CNT
 } UiPage;
 static UiPage active_page = PAGE_BASS;
 
@@ -64,6 +70,7 @@ _Static_assert((int)PAGE_BASS == (int)AUDIO_CONTROL_BASS, "UiPage must be in syn
 _Static_assert((int)PAGE_TREBLE == (int)AUDIO_CONTROL_TREB, "UiPage must be in sync with AudioControl");
 _Static_assert((int)PAGE_BASS_FREQ == (int)AUDIO_CONTROL_BASS_FREQ, "UiPage must be in sync with AudioControl");
 _Static_assert((int)PAGE_TREBLE_FREQ == (int)AUDIO_CONTROL_TREB_FREQ, "UiPage must be in sync with AudioControl");
+_Static_assert((int)PAGE_BALANCE == (int)AUDIO_CONTROL_BALANCE, "UiPage must be in sync with AudioControl");
 
 // when a page is not selected the BTN_LEFT / BTN_RIGHT goes to the next Page
 // when a page is selected the value can be changed with BTN_LEFT / BTN_RIGHT
@@ -86,7 +93,7 @@ static inline void print_us() {
 }
 
 // Call this every 1 ms
-static void update_button(GPIO_TypeDef *port, uint16_t pin, uint8_t btn_id, uint32_t curr_ms) {
+static void update_button(GPIO_TypeDef *port, uint16_t pin, uint8_t btn_id,	uint32_t curr_ms) {
 	// buttons are on pull up -> active low
 	bool is_down = (HAL_GPIO_ReadPin(port, pin) == GPIO_PIN_RESET);
 
@@ -173,6 +180,27 @@ static void show_page(UiPage page) {
 		get_audio_value_str(AUDIO_CONTROL_TREB_FREQ, &string_ptr);
 		SSD1306_Puts(string_ptr, &Font_11x18, FONT_CLR);
 		break;
+
+	case PAGE_BALANCE:
+		SSD1306_GotoXY(1, 0);
+		SSD1306_Puts("Blnc", &Font_11x18, FONT_CLR);
+
+		int16_t blnc_val = get_audio_value(AUDIO_CONTROL_BALANCE);
+		if (blnc_val == 0) {
+			SSD1306_GotoXY(10, 20);
+			SSD1306_Puts("L=R", &Font_7x10, FONT_CLR);
+		} else if (blnc_val > 0) {
+			SSD1306_GotoXY(10, 20);
+			SSD1306_Puts("Left", &Font_7x10, FONT_CLR);
+		} else {
+			SSD1306_GotoXY(7, 20);
+			SSD1306_Puts("Right", &Font_7x10, FONT_CLR);
+		}
+
+		SSD1306_GotoXY(50, 7);
+		get_audio_value_str(AUDIO_CONTROL_BALANCE, &string_ptr);
+		SSD1306_Puts(string_ptr, &Font_11x18, FONT_CLR);
+		break;
 	}
 
 	SSD1306_UpdateScreen();
@@ -236,16 +264,16 @@ void ui_task(void) {
 	}
 	last_ms = curr_ms;
 
-	update_button(BTN_USR_L_GPIO_Port, BTN_USR_L_Pin, BTN_LEFT,   curr_ms);
+	update_button(BTN_USR_L_GPIO_Port, BTN_USR_L_Pin, BTN_LEFT, curr_ms);
 	update_button(BTN_USR_M_GPIO_Port, BTN_USR_M_Pin, BTN_MIDDLE, curr_ms);
-	update_button(BTN_USR_R_GPIO_Port, BTN_USR_R_Pin, BTN_RIGHT,  curr_ms);
+	update_button(BTN_USR_R_GPIO_Port, BTN_USR_R_Pin, BTN_RIGHT, curr_ms);
 
 	if (isScreenTimeout(curr_ms)) {
 
-	if (SSD1306_IsOn()) {
-		SSD1306_PowerOff();
-		is_page_selected = false;
-	}
+		if (SSD1306_IsOn()) {
+			SSD1306_PowerOff();
+			is_page_selected = false;
+		}
 	}
 }
 

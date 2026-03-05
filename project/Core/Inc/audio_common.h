@@ -25,39 +25,11 @@
  SOFTWARE.
  */
 
-#include <stdint.h>
+#pragma once
 
-typedef enum {
-	AUDIO_CONTROL_BASS = 0,
-	AUDIO_CONTROL_TREB,
-	AUDIO_CONTROL_BASS_FREQ,
-	AUDIO_CONTROL_TREB_FREQ,
-	AUDIO_CONTROL_BALANCE,
-
-	// for now these are controlled only from USB
-	AUDIO_CONTROL_VOLUME,
-	AUDIO_CONTROL_MUTE,
-
-	AUDIO_CONTROL_CNT
-} AudioControl;
-
-// sends all tone related settings to the codec
-void audio_init();
-
-// call to get/set an absolute value to the volume
-void audio_set_volume_usb_pct(int16_t volume_pct);
-int16_t audio_get_volume_usb_pct(void);
-// call to get/set an absolute value to the mute
-void audio_set_mute(int8_t mute);
-int8_t audio_get_mute(void);
-
-
-// call to increase the given audio control by 1 step
-void audio_increase(AudioControl control);
-// call to decrease the given audio control by 1 step
-void audio_decrease(AudioControl control);
-
-// formats the given audio control into a string
-void get_audio_value_str(AudioControl control, char** ptr);
-
-extern inline int16_t get_audio_value(AudioControl control);
+// Windows is kind of confused with the real dB values.
+// Windows usually splits the whole volume range to 0-100% in 2% steps
+// on HW we have 102dB range with 0.5dB steps so make it 200
+#define USB_MAX_VOLUME_PCT       200
+#define USB_MIN_VOLUME_PCT         0
+#define USB_VOLUME_STEP			   1

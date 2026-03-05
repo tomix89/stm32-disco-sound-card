@@ -39,8 +39,13 @@ static I2S_HandleTypeDef *hi2s;
 #define MAX(a,b) ((a) > (b) ? (a) : (b))
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
 
-#define MASTER_MAX_VOLUME_DB 12
-#define MASTER_MIN_VOLUME_DB -102
+// master volume has a range of -102dB to +12dB in 0.5dB steps
+#define MASTER_MAX_VOLUME_DB 	  12
+#define MASTER_MIN_VOLUME_DB 	-102
+
+// headphones volume has a range of -102dB to 0dB in 0.5dB steps
+#define HP_MAX_VOLUME_DB           0
+#define HP_MIN_VOLUME_DB        -102
 
 #define OUTPUT_DEVICE_HEADPHONE   0xAF
 #define OUTPUT_DEVICE_OFF         0xFF
@@ -163,25 +168,34 @@ int CS43L22_init(void *i2c, void *i2s) {
 	return success != 0;
 }
 
-int CS43L22_set_hp_volume_db(int16_t db_256) {
-  db_256 = MIN(db_256, HP_MAX_VOLUME_DB << 8);
-  db_256 = MAX(db_256, HP_MIN_VOLUME_DB << 8);
+int CS43L22_set_hp_volume_db(int16_t vol_L, int16_t vol_R) {
+  // CS43L22 has 0.5dB resolution so the dB values are x2
+  //	0b0000 0000  0.0 dB
+  //	0b11111111  -0.5 dB
+  //	0b11111110  -1.0 dB
+  //	...
+  //	0b00110100  -102 dB
 
-#ifdef DEBUG
-  printf("setting vol: %d, %d.%d db\n", db_256, db_256/256, db_256/128*5);
-#endif
+  // vol_x already needs to be in this format
+
+  vol_L = MIN(vol_L, HP_MAX_VOLUME_DB << 1);
+  vol_L = MAX(vol_L, HP_MIN_VOLUME_DB << 1);
+
+  vol_R = MIN(vol_R, HP_MAX_VOLUME_DB << 1);
+  vol_R = MAX(vol_R, HP_MIN_VOLUME_DB << 1);
+  uint8_t success = 0;
+
+  printf("CS43L22 L: 0x%X R: 0x%X\n", vol_L, vol_R);
 
   // CS43L22 has a 0.5db resolution
-  uint8_t value = db_256 >> 7;
-  uint8_t success = 0;
-  success += codec_i2c_write_reg(CS43L22_REG_HEADPHONE_A_VOL, value);
-  success += codec_i2c_write_reg(CS43L22_REG_HEADPHONE_B_VOL, value);
+  success += codec_i2c_write_reg(CS43L22_REG_HEADPHONE_A_VOL, vol_L);
+  success += codec_i2c_write_reg(CS43L22_REG_HEADPHONE_B_VOL, vol_R);
 
   // if there was any error it will be non zero
   return success != 0;
 }
 
-int CS43L22_set_hp_mute(uint8_t mute) {
+int CS43L22_set_hp_mute(int8_t mute) {
 	  uint8_t value = mute > 0 ? 0b11000000 : 0b00000000;
 	  uint8_t success = 0;
 	  success += codec_i2c_write_reg(CS43L22_REG_PLAYBACK_CTL2, value);

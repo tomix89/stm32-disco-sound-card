@@ -97,7 +97,7 @@
   + TUD_AUDIO10_DESC_CS_AC_LEN(1)\
   + TUD_AUDIO10_DESC_INPUT_TERM_LEN\
   + TUD_AUDIO10_DESC_OUTPUT_TERM_LEN\
-  + TUD_AUDIO10_DESC_FEATURE_UNIT_LEN(2)\
+  + TUD_AUDIO10_DESC_FEATURE_UNIT_LEN(0)\
   + TUD_AUDIO10_DESC_STD_AS_LEN\
   + TUD_AUDIO10_DESC_STD_AS_LEN\
   + TUD_AUDIO10_DESC_CS_AS_INT_LEN\
@@ -116,7 +116,7 @@
   /* Output Terminal Descriptor(4.3.2.2) */\
   TUD_AUDIO10_DESC_OUTPUT_TERM(/*_termid*/ 0x03, /*_termtype*/ AUDIO_TERM_TYPE_OUT_DESKTOP_SPEAKER, /*_assocTerm*/ 0x00, /*_srcid*/ 0x02, /*_stridx*/ 0x00),\
   /* Feature Unit Descriptor(4.3.2.5) */\
-  TUD_AUDIO10_DESC_FEATURE_UNIT(/*_unitid*/ 0x02, /*_srcid*/ 0x01, /*_stridx*/ 0x00, /*_ctrlmaster*/ (AUDIO10_FU_CONTROL_BM_MUTE | AUDIO10_FU_CONTROL_BM_VOLUME), /*_ctrlch1*/ (AUDIO10_FU_CONTROL_BM_MUTE | AUDIO10_FU_CONTROL_BM_VOLUME), /*_ctrlch2*/ (AUDIO10_FU_CONTROL_BM_MUTE | AUDIO10_FU_CONTROL_BM_VOLUME)),\
+  TUD_AUDIO10_DESC_FEATURE_UNIT(/*_unitid*/ 0x02, /*_srcid*/ 0x01, /*_stridx*/ 0x00, /*_ctrlmaster*/ (AUDIO10_FU_CONTROL_BM_MUTE | AUDIO10_FU_CONTROL_BM_VOLUME)),\
   /* Standard AS Interface Descriptor(4.5.1) */\
   /* Interface 1, Alternate 0 - default alternate setting with 0 bandwidth */\
   TUD_AUDIO10_DESC_STD_AS_INT(/*_itfnum*/ (uint8_t)((_itfnum)+1), /*_altset*/ 0x00, /*_nEPs*/ 0x00, /*_stridx*/ 0x00),\
