@@ -102,13 +102,13 @@ BuffStatus buffStatus = SEND_1ST_HALF_FILL_2ND;
 
 
 // data comes each 1ms -> at 48KHz it will be 48 samples per channel
-#define SAMP_PER_CHANNEL	   48
-#define SAMP_ALL_CHANNELS      2 * SAMP_PER_CHANNEL // we have 2 channels
-#define TOTAL_AUDIO_SAMPLES    2 * SAMP_ALL_CHANNELS  // we have circular double buffering
-// Note: this is uint_16 sample size! byte size is 2x
+#define SAMP_PER_CHANNEL        48
+#define SAMP_ALL_CHANNELS       2 * SAMP_PER_CHANNEL // we have 2 channels
+#define TOTAL_AUDIO_SAMPLES     2 * SAMP_ALL_CHANNELS // we have circular double buffering
+#define BUFFER_BYTE_LEN	        4 * TOTAL_AUDIO_SAMPLES // 32bit frame
 
 // this is the actual DMA buffer
-uint16_t i2s_audio_buffer[TOTAL_AUDIO_SAMPLES];
+uint8_t i2s_audio_buffer[BUFFER_BYTE_LEN];
 
 static uint8_t isFirst = 1;
 
@@ -157,7 +157,7 @@ int CS43L22_init(void *i2c, void *i2s) {
 
 	// set the slave mode and the audio standard
 	uint8_t data = 0;
-	data |= 0b00000011; // 16bit mode
+	data |= 0b00000000; // 24bit mode
 	data |= 0b00000100; // I2S format
 	success += codec_i2c_write_reg(CS43L22_REG_INTERFACE_CTL1, data);
 
@@ -247,7 +247,7 @@ int audio_set_pcm_mute(uint8_t mute) {
 	  uint8_t value = mute > 0 ? 0b10000000 : 0b00000000;
 	  uint8_t success = 0;
 	  success += codec_i2c_write_reg(CS43L22_REG_PCMA_VOL, value);
-	  success += codec_i2c_write_reg(CS43L22_REG_PCMA_VOL, value);
+	  success += codec_i2c_write_reg(CS43L22_REG_PCMB_VOL, value);
 
 	  // if there was any error it will be non zero
 	  return success != 0;
@@ -263,7 +263,9 @@ void audio_play() {
 
 	if (isFirst) {
 		isFirst = 0;
-		HAL_I2S_Transmit_DMA(hi2s, i2s_audio_buffer, TOTAL_AUDIO_SAMPLES);
+		// the I2S is set to 32bit frame and the Size is the 32Bit size in this case !
+		// no need to mul by 2 because of 24bit in 32b frame on a 16bit pointer ...
+		HAL_I2S_Transmit_DMA(hi2s, (uint16_t*)i2s_audio_buffer, TOTAL_AUDIO_SAMPLES);
 	}
 	audio_set_pcm_mute(0);
 }
@@ -286,7 +288,7 @@ void audio_stop() {
 	// for now it states that a fully powered peripheral consumes 25mW
 	// HAL_I2S_DMAStop(hi2s);
 
-	 memset(i2s_audio_buffer, 0, TOTAL_AUDIO_SAMPLES*2); // *2 because memset() sets in bytes
+	 memset(i2s_audio_buffer, 0, BUFFER_BYTE_LEN);
 }
 
 inline I2sAudioState get_audio_state() {
@@ -299,8 +301,7 @@ inline I2sAudioState get_audio_state() {
 
 void loadMore() {
     // add new stuff when available
-	const uint16_t bytesToRead = SAMP_ALL_CHANNELS * 2;
-    const uint16_t I2S_BUFF_OFFS = buffStatus == SEND_2ND_HALF_FILL_1ST ? 0 : SAMP_ALL_CHANNELS;
+    const uint16_t I2S_BUFF_OFFS = buffStatus == SEND_2ND_HALF_FILL_1ST ? 0 : BUFFER_BYTE_LEN/2;
 
     // since we are not stopping the I2S it will deplete the USB FIFO fully
     // but additionally it will also slow the refill significantly
@@ -309,28 +310,11 @@ void loadMore() {
     	return;
     }
 
-	// this reads in bytes
-	tud_audio_read(&i2s_audio_buffer[I2S_BUFF_OFFS], bytesToRead);
-
-
-	{
-		// really basic signal level detection
-		static uint8_t pwm_counter = 0;
-		static int32_t average = 0;
-		int16_t max = 0;
-		for (int i=0; i<SAMP_ALL_CHANNELS; ++i) {
-			max = MAX((int16_t)i2s_audio_buffer[I2S_BUFF_OFFS+i], max);
-		}
-		average = (9 * average + max) / 10;
-
-		// Increase counter and wrap at 10
-		pwm_counter++;
-		if (pwm_counter >= 10) {
-			pwm_counter = 0;
-		}
-
-		HAL_GPIO_WritePin(LED_Blue_GPIO_Port, LED_Blue_Pin, average/1200 > pwm_counter ? GPIO_PIN_SET : GPIO_PIN_RESET);
-	}
+    for (int i=0; i<SAMP_ALL_CHANNELS; ++i) {
+    	// tud_audio_read() reads in bytes
+    	// reading 16bit to a 32bit buffer
+    	tud_audio_read(&i2s_audio_buffer[I2S_BUFF_OFFS + i*4], 2);
+    }
 }
 
 void HAL_I2S_TxHalfCpltCallback(I2S_HandleTypeDef *hi2s) {

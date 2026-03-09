@@ -18,13 +18,13 @@ master mode half duplex
 DON'T forget to enable master clock out!
 
 I2S philips
-16b/16b 48KHz
+24b/32b 48KHz
 for that set in clock (calculated by my i2s-clock-calc.py)
 8MHZ main crystal -> PPL M=5, N=192, R=5, therefeore the I2S clock is 61.44MHz (it is exactly 5x 12.288MHz)
 eanble DMA1 stream5 global interrup
 DMA is circular increment only on memory
 Priority - High
-Data width: Half word
+Data width: Half word - Even when using 32bit frame the I2S has a 16Bit register
  - FiFo is optional (could help with possible cracks) - if more DMA channels are used it is not guaranteed to get data, so use a small FiFi to compensate for that, therefore DMA will transfer 4/8 samples in one go instead of 1-1 all the time
 
 
