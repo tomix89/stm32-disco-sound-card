@@ -310,10 +310,31 @@ void loadMore() {
     	return;
     }
 
+    uint8_t mid_buff[3];
+
     for (int i=0; i<SAMP_ALL_CHANNELS; ++i) {
     	// tud_audio_read() reads in bytes
-    	// reading 16bit to a 32bit buffer
-    	tud_audio_read(&i2s_audio_buffer[I2S_BUFF_OFFS + i*4], 2);
+    	// reading 24bit to a 32bit buffer
+    	// tud_audio_read(&i2s_audio_buffer[I2S_BUFF_OFFS + i*4], 3);
+
+    	// this reads in bytes
+    	tud_audio_read(mid_buff, 3);
+
+    	// This might be confusing, but it is needed as we pass virtually 2x16bits onto the DAC.
+    	// Each 16bit has a buff[1]-> MSB and buff[0]-> LSB because endian-ness
+    	// can be better seen in an union.
+    	// But the 2x 16Bit buffer is the opposite because how the I2S works:
+    	// more sensitive 16bit first, less sensitive 16bit last
+    	// so the mapping is
+    	//   USB   array:  0, 1, 2 -> LSB, MID, MSB
+    	//   I2S   array:  MSB[ LSB,  MSB  ] + LSB[ LSB, MSB  ]
+    	//   e.g.          MSB[ USB1, USB2 ] + LSB[   0, USB0 ]
+
+    	 i2s_audio_buffer[I2S_BUFF_OFFS + i*4+1] = mid_buff[2];
+    	 i2s_audio_buffer[I2S_BUFF_OFFS + i*4+0] = mid_buff[1];
+
+    	 i2s_audio_buffer[I2S_BUFF_OFFS + i*4+3] = mid_buff[0];
+      // i2s_audio_buffer[I2S_BUFF_OFFS + i*4+2] = 0;
     }
 }
 
