@@ -302,6 +302,7 @@ inline I2sAudioState get_audio_state() {
 void loadMore() {
     // add new stuff when available
     const uint16_t I2S_BUFF_OFFS = buffStatus == SEND_2ND_HALF_FILL_1ST ? 0 : BUFFER_BYTE_LEN/2;
+    static uint8_t samples_lr_24[SAMP_ALL_CHANNELS * 3]; // buffer for tud_audio_read() for 24bit data
 
     // since we are not stopping the I2S it will deplete the USB FIFO fully
     // but additionally it will also slow the refill significantly
@@ -310,16 +311,17 @@ void loadMore() {
     	return;
     }
 
-    uint8_t mid_buff[3];
+    // tud_audio_read() reads in bytes
+    // reading 24bit
+    // read all the samples from USB in one block as reading it one by one is fairly expensive
+    // measured the whole loadMore() by DWT counter.
+    //   - using tud_audio_read() one by one (inside a loop) is ~44500 clocks
+    //   - using tud_audio_read() as one big block ~8400 clocks
+    // does not really matter if Debug or Release build was used
+    tud_audio_read(samples_lr_24, SAMP_ALL_CHANNELS * 3);
 
+   // expand 24bit data to 32bit frame
     for (int i=0; i<SAMP_ALL_CHANNELS; ++i) {
-    	// tud_audio_read() reads in bytes
-    	// reading 24bit to a 32bit buffer
-    	// tud_audio_read(&i2s_audio_buffer[I2S_BUFF_OFFS + i*4], 3);
-
-    	// this reads in bytes
-    	tud_audio_read(mid_buff, 3);
-
     	// This might be confusing, but it is needed as we pass virtually 2x16bits onto the DAC.
     	// Each 16bit has a buff[1]-> MSB and buff[0]-> LSB because endian-ness
     	// can be better seen in an union.
@@ -330,22 +332,21 @@ void loadMore() {
     	//   I2S   array:  MSB[ LSB,  MSB  ] + LSB[ LSB, MSB  ]
     	//   e.g.          MSB[ USB1, USB2 ] + LSB[   0, USB0 ]
 
-    	 i2s_audio_buffer[I2S_BUFF_OFFS + i*4+1] = mid_buff[2];
-    	 i2s_audio_buffer[I2S_BUFF_OFFS + i*4+0] = mid_buff[1];
+    	 i2s_audio_buffer[I2S_BUFF_OFFS + i*4+1] = samples_lr_24[i*3 + 2];
+    	 i2s_audio_buffer[I2S_BUFF_OFFS + i*4+0] = samples_lr_24[i*3 + 1];
 
-    	 i2s_audio_buffer[I2S_BUFF_OFFS + i*4+3] = mid_buff[0];
+    	 i2s_audio_buffer[I2S_BUFF_OFFS + i*4+3] = samples_lr_24[i*3 + 0];
       // i2s_audio_buffer[I2S_BUFF_OFFS + i*4+2] = 0;
     }
 }
 
 void HAL_I2S_TxHalfCpltCallback(I2S_HandleTypeDef *hi2s) {
-	buffStatus = SEND_2ND_HALF_FILL_1ST;
+    buffStatus = SEND_2ND_HALF_FILL_1ST;
     loadMore();
 }
 
 void HAL_I2S_TxCpltCallback(I2S_HandleTypeDef *hi2s) {
-	buffStatus = SEND_1ST_HALF_FILL_2ND;
+    buffStatus = SEND_1ST_HALF_FILL_2ND;
     loadMore();
 }
-
 
