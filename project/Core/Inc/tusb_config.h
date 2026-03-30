@@ -91,7 +91,7 @@ extern "C" {
 
 // Expose audio class debug information via HID interface
 #ifndef CFG_AUDIO_DEBUG
-#define CFG_AUDIO_DEBUG           1
+#define CFG_AUDIO_DEBUG           0
 #endif
 
 #ifndef CFG_TUD_ENDPOINT0_SIZE
@@ -135,7 +135,9 @@ extern "C" {
 
 // AUDIO_FEEDBACK_METHOD_FIFO_COUNT needs buffer size >= 4* EP size to work correctly
 // Example read FIFO every 1ms (8 HS frames), so buffer size should be 8 times larger for HS device
-#define CFG_TUD_AUDIO_FUNC_1_EP_OUT_SW_BUF_SZ       TU_MAX(4 * CFG_TUD_AUDIO_FUNC_1_EP_OUT_SZ_FS, 32 * CFG_TUD_AUDIO_FUNC_1_EP_OUT_SZ_HS)
+// make the HS zero so it does not overwrite our FS max (HS is 8.6x (48*3*2))
+#define CFG_TUD_AUDIO_FUNC_1_EP_OUT_SW_BUF_SZ       TU_MAX(12 * CFG_TUD_AUDIO_FUNC_1_EP_OUT_SZ_FS, 0 * CFG_TUD_AUDIO_FUNC_1_EP_OUT_SZ_HS)
+
 
 // Enable OUT EP
 #define CFG_TUD_AUDIO_ENABLE_EP_OUT                 1

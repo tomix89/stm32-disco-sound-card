@@ -527,21 +527,39 @@ void tud_audio_feedback_params_cb(uint8_t func_id, uint8_t alt_itf, audio_feedba
 		  AUDIO_SAMPLING_RATE * CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_RX * CFG_TUD_AUDIO_FUNC_1_N_BYTES_PER_SAMPLE_RX / 1000 * 4;
 }
 
-#if CFG_AUDIO_DEBUG
 bool tud_audio_rx_done_isr(uint8_t rhport, uint16_t n_bytes_received, uint8_t func_id, uint8_t ep_out, uint8_t cur_alt_setting) {
-  (void) rhport;
-  (void) n_bytes_received;
   (void) func_id;
-  (void) ep_out;
   (void) cur_alt_setting;
 
+  if (rhport == BOARD_TUD_RHPORT && ep_out == 1) {
+    // In some rare occasions we are getting a packet which is not dividable by
+    //(2 channel * 24bit) = 2ch * 3byte = 6byte
+    // which then leads to de-sync on the I2S byte level and we are getting a massive noise.
+    // This seems to happen when the audio device is plugged into an USB-C dock
+    // which has a monitor connected to it and the PC is usually under heavy(er) load.
+    // This seems to affect only that single Win 11 23H2 PC
+    // but in theory it could happen with any other host, so fix:
+    const uint16_t ALIGN = CFG_TUD_AUDIO_FUNC_1_N_BYTES_PER_SAMPLE_RX * CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_RX;
+    const uint16_t misalign = n_bytes_received % ALIGN;
+   
+    if (misalign != 0) {
+      // printf("misalign: %u\n", n_bytes_received);
+      HAL_GPIO_WritePin(LED_Blue_GPIO_Port, LED_Blue_Pin, GPIO_PIN_SET);
+      // actually roll BACK the write pointer by 'n_bytes_received' e.g. delete the broken data.
+      // Just deleting the last 'misalign' bytes is not enough, it is audible
+      tu_fifo_t* ep_out_ff = tud_audio_get_ep_out_ff();
+      tu_fifo_advance_write_pointer(ep_out_ff, (uint16_t)(2*ep_out_ff->depth - n_bytes_received));
+    }
+  }
+
+#if CFG_AUDIO_DEBUG
   fifo_count = tud_audio_available();
   // Same averaging method used in UAC2 class
   fifo_count_avg = (uint32_t) (((uint64_t) fifo_count_avg * 63 + ((uint32_t) fifo_count << 16)) >> 6);
+#endif
 
   return true;
 }
-#endif
 
 //--------------------------------------------------------------------+
 // AUDIO Task
