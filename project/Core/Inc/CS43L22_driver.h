@@ -40,6 +40,8 @@ void audio_play();
 void audio_stop();
 I2sAudioState get_audio_state();
 
+int CS43L22_set_master_volume_db(int16_t vol_LR);
+
 int CS43L22_set_hp_volume_db(int16_t vol_L, int16_t vol_R);
 int CS43L22_set_hp_mute(int8_t mute);
 
@@ -49,4 +51,6 @@ int CS43L22_set_bass_treb_gain(uint8_t bass, uint8_t treb);
 
 // both needs to be set in the same register
 int CS43L22_set_bass_treb_freq(uint8_t bass_id, uint8_t treb_id);
+
+int CS43L22_read_clip_reg();
 

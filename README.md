@@ -30,3 +30,21 @@ Current state of the prototype:
     </td>
   </tr>
 </table>
+
+Tested with:\
+​  ● Windows 11 25H2 and 23H2\
+​  ● Windows 10 22H2\
+​  ● Ubuntu  22.04 LTS\
+​  ● Android 8.1.0 (Huawei Y5 2018)\
+​  ● Android 9 (Xiaomi Redmi 6)\
+​  ● Android 12 (Samsung Galaxy A41)\
+​  ● Android 8.1.0 (Huawei Y5 2018)\
+​  ● Android 9 (Xiaomi Redmi 6)\
+​  ● Android 12 (Samsung Galaxy A41)
+
+<br>
+
+Note on how the volume is handled:
+- Windows seems to respect that we have a volume control, and sends the full amplitude audio stream and sets the volume by a separate volume value. In this case the DSP can process the audio in full precision, because we are setting the volume only before the DAC
+- Ubuntu -> ToDo check
+- On all the Android devices I have tried, the volume is set to max on the USB level, and the phone sends the PCM stream scaled to the actual volume

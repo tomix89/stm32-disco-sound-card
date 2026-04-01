@@ -26,6 +26,7 @@ SOFTWARE.
 */
 
 #include "CS43L22_driver.h"
+#include "custom_math.h"
 #include "stm32f4xx_hal.h"
 #include "main.h"
 #include "tusb.h"
@@ -35,9 +36,6 @@ SOFTWARE.
 
 static I2C_HandleTypeDef *hi2c;
 static I2S_HandleTypeDef *hi2s;
-
-#define MAX(a,b) ((a) > (b) ? (a) : (b))
-#define MIN(a,b) ((a) < (b) ? (a) : (b))
 
 // master volume has a range of -102dB to +12dB in 0.5dB steps
 #define MASTER_MAX_VOLUME_DB 	  12
@@ -170,11 +168,11 @@ int CS43L22_init(void *i2c, void *i2s) {
 
 int CS43L22_set_hp_volume_db(int16_t vol_L, int16_t vol_R) {
   // CS43L22 has 0.5dB resolution so the dB values are x2
-  //	0b0000 0000  0.0 dB
-  //	0b11111111  -0.5 dB
-  //	0b11111110  -1.0 dB
+  //	0b0000 0000   0.0 dB
+  //	0b1111 1111  -0.5 dB
+  //	0b1111 1110  -1.0 dB
   //	...
-  //	0b00110100  -102 dB
+  //	0b0011 0100  -102 dB
 
   // vol_x already needs to be in this format
 
@@ -185,7 +183,7 @@ int CS43L22_set_hp_volume_db(int16_t vol_L, int16_t vol_R) {
   vol_R = MAX(vol_R, HP_MIN_VOLUME_DB << 1);
   uint8_t success = 0;
 
-  printf("CS43L22 L: 0x%X R: 0x%X\n", vol_L, vol_R);
+  printf("CS43L22_hp L: 0x%X R: 0x%X\n", vol_L, vol_R);
 
   // CS43L22 has a 0.5db resolution
   success += codec_i2c_write_reg(CS43L22_REG_HEADPHONE_A_VOL, vol_L);
@@ -223,23 +221,50 @@ int CS43L22_set_bass_treb_freq(uint8_t bass_id, uint8_t treb_id) {
 	return success != 0;
 }
 
+int CS43L22_read_clip_reg(uint8_t *result) {
+	uint8_t success = 0;
+	uint8_t value = 0;
+	success += codec_i2c_read_reg(CS43L22_REG_OVF_CLK_STATUS, &value);
+
+	// test all the overflow flags in one
+	*result = (value & 0b00111100) ? 1 : 0;
+
+
+			  HAL_GPIO_WritePin(LED_Red_GPIO_Port, LED_Red_Pin, (*result != 0) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+
+
+
+	// if there was any error it will be non zero
+	return success != 0;
+}
+
+int CS43L22_set_master_volume_db(int16_t vol_LR) {
+	  // CS43L22 has 0.5dB resolution so the dB values are x2
+	  //    0b0001 1000   +12.0 dB
+	  //	0b0000 0000     0.0 dB
+	  //	0b1111 1111    -0.5 dB
+	  //	0b1111 1110    -1.0 dB
+	  //	0b0011 0100  -102.0 dB
+
+	  // vol_x already needs to be in this format
+
+	  vol_LR = MIN(vol_LR, MASTER_MAX_VOLUME_DB << 1);
+	  vol_LR = MAX(vol_LR, MASTER_MIN_VOLUME_DB << 1);
+	  uint8_t success = 0;
+
+	  printf("CS43L22_m L: 0x%X R: 0x%X\n", vol_LR, vol_LR);
+
+	  // CS43L22 has a 0.5db resolution
+	  success += codec_i2c_write_reg(CS43L22_REG_MASTER_A_VOL, vol_LR);
+	  success += codec_i2c_write_reg(CS43L22_REG_MASTER_B_VOL, vol_LR);
+
+	  // if there was any error it will be non zero
+	  return success != 0;
+}
+
 //--------------------------------------------------------------------
 //----------------- only for used internally in CS43L22_driver -------
 //--------------------------------------------------------------------
-
-int audio_set_master_volume_db(int16_t db_256) {
-  db_256 = MIN(db_256, MASTER_MAX_VOLUME_DB << 8);
-  db_256 = MAX(db_256, MASTER_MIN_VOLUME_DB << 8);
-
-  // CS43L22 has a 0.5db resolution
-  uint8_t value = db_256 >> 7;
-  uint8_t success = 0;
-  success += codec_i2c_write_reg(CS43L22_REG_MASTER_A_VOL, value);
-  success += codec_i2c_write_reg(CS43L22_REG_MASTER_B_VOL, value);
-
-  // if there was any error it will be non zero
-  return success != 0;
-}
 
 // do not use master mute as it has also the analog gain in the same register
 // will be hard to do write only

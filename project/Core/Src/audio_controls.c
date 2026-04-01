@@ -27,8 +27,8 @@
 
 #include "audio_controls.h"
 #include "CS43L22_driver.h"
+#include "custom_math.h"
 #include <stdio.h> // sprintf()
-#include <stdlib.h> // abs()
 
 #define DIVISOR 	10
 // these all are x10 (DIVISOR) of the real world value so we can have 0.5 and still somewhat human readable
@@ -71,6 +71,11 @@ static inline uint8_t convert_to_tone_gain(int16_t value) {
 	return (TONE_MAX - value) / 15;
 }
 
+// scale the internal DIVISOR offseted value to the 0.5dB step format for CS43L22
+static inline int16_t convert_to_CS43L22_vol(int16_t volume) {
+	return volume / (DIVISOR / 2);
+}
+
 static void send_volume_with_blnc(void) {
 	int16_t vol_L = control_value[AUDIO_CONTROL_VOLUME];
 	int16_t vol_R = control_value[AUDIO_CONTROL_VOLUME];
@@ -84,8 +89,8 @@ static void send_volume_with_blnc(void) {
 
 	// scale it to 0.5dB step format for CS43L22
 	CS43L22_set_hp_volume_db(
-			vol_L / (DIVISOR / 2),
-			vol_R / (DIVISOR / 2));
+			convert_to_CS43L22_vol(vol_L),
+			convert_to_CS43L22_vol(vol_R));
 }
 
 static void update_audio_codec(AudioControl control) {
@@ -99,6 +104,18 @@ static void update_audio_codec(AudioControl control) {
 		CS43L22_set_bass_treb_gain(
 				convert_to_tone_gain(control_value[AUDIO_CONTROL_BASS]),
 				convert_to_tone_gain(control_value[AUDIO_CONTROL_TREB]));
+
+		// if the tone is set to positive gain it can clip,
+		// so decrease the gain before the tone control (master volume)
+		int16_t tone_gain_max = MAX(control_value[AUDIO_CONTROL_BASS],
+									control_value[AUDIO_CONTROL_TREB]);
+
+		// do not increase volume when tone gain is negative
+		tone_gain_max = MAX(0, tone_gain_max);
+
+		// scale it to 0.5dB step format for CS43L22
+		CS43L22_set_master_volume_db(convert_to_CS43L22_vol(-tone_gain_max));
+
 		break;
 
 	case AUDIO_CONTROL_BASS_FREQ:
@@ -151,7 +168,7 @@ int8_t audio_get_mute(void) {
 }
 
 static int16_t get_blnc_step() {
-	int16_t curr_blnc = abs(control_value[AUDIO_CONTROL_BALANCE]);
+	int16_t curr_blnc = ABS(control_value[AUDIO_CONTROL_BALANCE]);
 	if (curr_blnc < 10 * DIVISOR) {
 		return 	BLNC_BASE_STEP;
 	} else if (curr_blnc < 20 * DIVISOR) {
@@ -245,7 +262,7 @@ void audio_init() {
 // format value to dB
 static inline void format_db(int16_t current_value, char **ptr) {
 	int16_t front = current_value / DIVISOR;
-	int8_t back = abs(current_value - front * DIVISOR);
+	int8_t back = ABS(current_value - front * DIVISOR);
 
 	uint8_t pos = 0;
 	// we don't have a minus sign, so pad
@@ -253,7 +270,7 @@ static inline void format_db(int16_t current_value, char **ptr) {
 		string_buffer[pos++] = ' ';
 	}
 	// 1 digit number, so pad
-	if (abs(front) < 10) {
+	if (ABS(front) < 10) {
 		string_buffer[pos++] = ' ';
 	}
 
@@ -287,7 +304,7 @@ void get_audio_value_str(AudioControl control, char **ptr) {
 
 	case AUDIO_CONTROL_BALANCE:
 		// this is always a negative
-		format_db(-abs(current_value), ptr);
+		format_db(-ABS(current_value), ptr);
 		break;
 
 	default:
