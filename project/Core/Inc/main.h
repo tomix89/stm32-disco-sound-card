@@ -59,10 +59,8 @@ void Error_Handler(void);
 /* Private defines -----------------------------------------------------------*/
 #define CS_I2C_SPI_Pin GPIO_PIN_3
 #define CS_I2C_SPI_GPIO_Port GPIOE
-#define BTN_USR_M_Pin GPIO_PIN_6
-#define BTN_USR_M_GPIO_Port GPIOE
-#define BTN_USR_R_Pin GPIO_PIN_13
-#define BTN_USR_R_GPIO_Port GPIOC
+#define SPI5_SS_Pin GPIO_PIN_6
+#define SPI5_SS_GPIO_Port GPIOE
 #define PC14_OSC32_IN_Pin GPIO_PIN_14
 #define PC14_OSC32_IN_GPIO_Port GPIOC
 #define PC15_OSC32_OUT_Pin GPIO_PIN_15
@@ -73,8 +71,12 @@ void Error_Handler(void);
 #define PH1_OSC_OUT_GPIO_Port GPIOH
 #define OTG_FS_PowerSwitchOn_Pin GPIO_PIN_0
 #define OTG_FS_PowerSwitchOn_GPIO_Port GPIOC
+#define OLED_RST_Pin GPIO_PIN_2
+#define OLED_RST_GPIO_Port GPIOC
 #define PDM_OUT_Pin GPIO_PIN_3
 #define PDM_OUT_GPIO_Port GPIOC
+#define OLED_DC_Pin GPIO_PIN_2
+#define OLED_DC_GPIO_Port GPIOA
 #define I2S3_WS_Pin GPIO_PIN_4
 #define I2S3_WS_GPIO_Port GPIOA
 #define SPI1_SCK_Pin GPIO_PIN_5
@@ -83,14 +85,12 @@ void Error_Handler(void);
 #define SPI1_MISO_GPIO_Port GPIOA
 #define SPI1_MOSI_Pin GPIO_PIN_7
 #define SPI1_MOSI_GPIO_Port GPIOA
-#define OLED_DC_Pin GPIO_PIN_11
-#define OLED_DC_GPIO_Port GPIOE
-#define OLED_RST_Pin GPIO_PIN_13
-#define OLED_RST_GPIO_Port GPIOE
+#define BTN_USR_UP_Pin GPIO_PIN_8
+#define BTN_USR_UP_GPIO_Port GPIOE
 #define CLK_IN_Pin GPIO_PIN_10
 #define CLK_IN_GPIO_Port GPIOB
-#define SPI2_SS_Pin GPIO_PIN_8
-#define SPI2_SS_GPIO_Port GPIOD
+#define BTN_USR_L_Pin GPIO_PIN_12
+#define BTN_USR_L_GPIO_Port GPIOB
 #define LED_Green_Pin GPIO_PIN_12
 #define LED_Green_GPIO_Port GPIOD
 #define LED_Orange_Pin GPIO_PIN_13
@@ -101,6 +101,10 @@ void Error_Handler(void);
 #define LED_Blue_GPIO_Port GPIOD
 #define I2S3_MCK_Pin GPIO_PIN_7
 #define I2S3_MCK_GPIO_Port GPIOC
+#define BTN_USR_DN_Pin GPIO_PIN_8
+#define BTN_USR_DN_GPIO_Port GPIOC
+#define BTN_USR_R_Pin GPIO_PIN_8
+#define BTN_USR_R_GPIO_Port GPIOA
 #define VBUS_FS_Pin GPIO_PIN_9
 #define VBUS_FS_GPIO_Port GPIOA
 #define OTG_FS_ID_Pin GPIO_PIN_10
@@ -125,10 +129,10 @@ void Error_Handler(void);
 #define SWO_GPIO_Port GPIOB
 #define Audio_SCL_Pin GPIO_PIN_6
 #define Audio_SCL_GPIO_Port GPIOB
-#define BTN_USR_L_Pin GPIO_PIN_8
-#define BTN_USR_L_GPIO_Port GPIOB
 #define Audio_SDA_Pin GPIO_PIN_9
 #define Audio_SDA_GPIO_Port GPIOB
+#define MEMS_INT1_Pin GPIO_PIN_0
+#define MEMS_INT1_GPIO_Port GPIOE
 #define MEMS_INT2_Pin GPIO_PIN_1
 #define MEMS_INT2_GPIO_Port GPIOE
 

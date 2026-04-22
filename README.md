@@ -1,8 +1,7 @@
 # stm32-disco-sound-card
 An UAC1 implementation for the STM32F411-DISCO board with **tone control**!\
 What i wanted to achive a long time for now to have a ligh weight USB DAC for my headphones which does not need any special driver and have hardware physical tone contol in the digital domain.\
-For this the STM32F411-DISCO board which i had for years seemed to be a really good candidate with it's CS43L22 audio headphone DAC.\
-The project aims for a generic 48kHz 24bit stereo implementation.\
+For this the STM32F411-DISCO board which i had for years seemed to be a really good candidate with it's CS43L22 audio headphone DAC. The project aims for a generic 48kHz 24bit stereo implementation.\
 A quick, short, real life demo of the prototype: https://youtu.be/ILklubHfwOU
 
 This project heavily relyes on the tiny USB project:\
@@ -51,6 +50,6 @@ Note on how the volume is handled:
 - On all the Android devices I have tried, the volume is set to max on the USB level, and the phone sends the PCM stream scaled to the actual volume
 
 
-Hardware
+## Hardware
 The custom part of the board is designed in KiCad 10.\
 Big thanks to the https://www.youtube.com/@HTMWorkshop for the really nice tutorial videos for teaching me KiCad in a few hours.
