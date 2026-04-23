@@ -33,7 +33,7 @@
 #include <stdbool.h>
 
 typedef enum {
-	BTN_LEFT = 0, BTN_MIDDLE, BTN_RIGHT, BTN_COUNT
+	BTN_LEFT = 0, BTN_RIGHT, BTN_UP, BTN_DN, BTN_COUNT
 } Button;
 
 // timestamp of the last button action
@@ -72,9 +72,6 @@ _Static_assert((int)PAGE_BASS_FREQ == (int)AUDIO_CONTROL_BASS_FREQ, "UiPage must
 _Static_assert((int)PAGE_TREBLE_FREQ == (int)AUDIO_CONTROL_TREB_FREQ, "UiPage must be in sync with AudioControl");
 _Static_assert((int)PAGE_BALANCE == (int)AUDIO_CONTROL_BALANCE, "UiPage must be in sync with AudioControl");
 
-// when a page is not selected the BTN_LEFT / BTN_RIGHT goes to the next Page
-// when a page is selected the value can be changed with BTN_LEFT / BTN_RIGHT
-bool is_page_selected = false;
 
 static void key_pressed(Button btn);
 static void key_hold(Button btn);
@@ -128,78 +125,74 @@ static void update_button(GPIO_TypeDef *port, uint16_t pin, uint8_t btn_id,	uint
 }
 
 static void show_page(UiPage page) {
-	const uint8_t BACK_CLR =
-			is_page_selected ? SSD1306_PX_CLR_WHITE : SSD1306_PX_CLR_BLACK;
-	const uint8_t FONT_CLR =
-			is_page_selected ? SSD1306_PX_CLR_BLACK : SSD1306_PX_CLR_WHITE;
 	char *string_ptr = 0; // for the audio strings
 
-	SSD1306_Fill(BACK_CLR);
+	SSD1306_Fill(SSD1306_PX_CLR_BLACK);
 
 	switch (page) {
 	case PAGE_BASS:
 		SSD1306_GotoXY(1, 0);
-		SSD1306_Puts("Bass", &Font_11x18, FONT_CLR);
+		SSD1306_Puts("Bass", &Font_11x18, SSD1306_PX_CLR_WHITE);
 		SSD1306_GotoXY(0, 20);
-		SSD1306_Puts(" gain", &Font_7x10, FONT_CLR);
+		SSD1306_Puts(" gain", &Font_7x10, SSD1306_PX_CLR_WHITE);
 
 		SSD1306_GotoXY(50, 7);
 		get_audio_value_str(AUDIO_CONTROL_BASS, &string_ptr);
-		SSD1306_Puts(string_ptr, &Font_11x18, FONT_CLR);
+		SSD1306_Puts(string_ptr, &Font_11x18, SSD1306_PX_CLR_WHITE);
 		break;
 
 	case PAGE_TREBLE:
 		SSD1306_GotoXY(1, 0);
-		SSD1306_Puts("Treb", &Font_11x18, FONT_CLR);
+		SSD1306_Puts("Treb", &Font_11x18, SSD1306_PX_CLR_WHITE);
 		SSD1306_GotoXY(0, 20);
-		SSD1306_Puts(" gain", &Font_7x10, FONT_CLR);
+		SSD1306_Puts(" gain", &Font_7x10, SSD1306_PX_CLR_WHITE);
 
 		SSD1306_GotoXY(50, 7);
 		get_audio_value_str(AUDIO_CONTROL_TREB, &string_ptr);
-		SSD1306_Puts(string_ptr, &Font_11x18, FONT_CLR);
+		SSD1306_Puts(string_ptr, &Font_11x18, SSD1306_PX_CLR_WHITE);
 		break;
 
 	case PAGE_BASS_FREQ:
 		SSD1306_GotoXY(1, 0);
-		SSD1306_Puts("Bass", &Font_11x18, FONT_CLR);
+		SSD1306_Puts("Bass", &Font_11x18, SSD1306_PX_CLR_WHITE);
 		SSD1306_GotoXY(0, 20);
-		SSD1306_Puts(" freq", &Font_7x10, FONT_CLR);
+		SSD1306_Puts(" freq", &Font_7x10, SSD1306_PX_CLR_WHITE);
 
 		SSD1306_GotoXY(70, 7);
 		get_audio_value_str(AUDIO_CONTROL_BASS_FREQ, &string_ptr);
-		SSD1306_Puts(string_ptr, &Font_11x18, FONT_CLR);
+		SSD1306_Puts(string_ptr, &Font_11x18, SSD1306_PX_CLR_WHITE);
 		break;
 
 	case PAGE_TREBLE_FREQ:
 		SSD1306_GotoXY(1, 0);
-		SSD1306_Puts("Treb", &Font_11x18, FONT_CLR);
+		SSD1306_Puts("Treb", &Font_11x18, SSD1306_PX_CLR_WHITE);
 		SSD1306_GotoXY(0, 20);
-		SSD1306_Puts(" freq", &Font_7x10, FONT_CLR);
+		SSD1306_Puts(" freq", &Font_7x10, SSD1306_PX_CLR_WHITE);
 
 		SSD1306_GotoXY(70, 7);
 		get_audio_value_str(AUDIO_CONTROL_TREB_FREQ, &string_ptr);
-		SSD1306_Puts(string_ptr, &Font_11x18, FONT_CLR);
+		SSD1306_Puts(string_ptr, &Font_11x18, SSD1306_PX_CLR_WHITE);
 		break;
 
 	case PAGE_BALANCE:
 		SSD1306_GotoXY(1, 0);
-		SSD1306_Puts("Blnc", &Font_11x18, FONT_CLR);
+		SSD1306_Puts("Blnc", &Font_11x18, SSD1306_PX_CLR_WHITE);
 
 		int16_t blnc_val = get_audio_value(AUDIO_CONTROL_BALANCE);
 		if (blnc_val == 0) {
 			SSD1306_GotoXY(10, 20);
-			SSD1306_Puts("L=R", &Font_7x10, FONT_CLR);
+			SSD1306_Puts("L=R", &Font_7x10, SSD1306_PX_CLR_WHITE);
 		} else if (blnc_val > 0) {
 			SSD1306_GotoXY(10, 20);
-			SSD1306_Puts("Left", &Font_7x10, FONT_CLR);
+			SSD1306_Puts("Left", &Font_7x10, SSD1306_PX_CLR_WHITE);
 		} else {
 			SSD1306_GotoXY(7, 20);
-			SSD1306_Puts("Right", &Font_7x10, FONT_CLR);
+			SSD1306_Puts("Right", &Font_7x10, SSD1306_PX_CLR_WHITE);
 		}
 
 		SSD1306_GotoXY(50, 7);
 		get_audio_value_str(AUDIO_CONTROL_BALANCE, &string_ptr);
-		SSD1306_Puts(string_ptr, &Font_11x18, FONT_CLR);
+		SSD1306_Puts(string_ptr, &Font_11x18, SSD1306_PX_CLR_WHITE);
 		break;
 	}
 
@@ -208,33 +201,28 @@ static void show_page(UiPage page) {
 
 static void key_pressed(Button btn) {
 	if (SSD1306_IsOn()) {
-		if (is_page_selected) {
-			if (btn == BTN_RIGHT) {
-				audio_increase(active_page);
-			} else if (btn == BTN_LEFT) {
-				audio_decrease(active_page);
-			}
 
-		} else {
-			if (btn == BTN_RIGHT) {
-				active_page++;
-				if (active_page >= PAGE_CNT) {
-					active_page = 0;
-				}
-			} else if (btn == BTN_LEFT) {
-				active_page--;
-				if (active_page >= PAGE_CNT) {
-					active_page = PAGE_CNT - 1;
-				}
+		if (btn == BTN_RIGHT) {
+			audio_increase(active_page);
+		} else if (btn == BTN_LEFT) {
+			audio_decrease(active_page);
+
+		} else if (btn == BTN_DN) {
+			active_page++;
+			if (active_page >= PAGE_CNT) {
+				active_page = 0;
+			}
+		} else if (btn == BTN_UP) {
+			active_page--;
+			if (active_page >= PAGE_CNT) {
+				active_page = PAGE_CNT - 1;
 			}
 		}
 
-		if (btn == BTN_MIDDLE) {
-			is_page_selected = !is_page_selected;
-		}
 	} else {
 		SSD1306_PowerOn();
 	}
+
 	show_page(active_page);
 }
 
@@ -243,16 +231,14 @@ static void key_hold(Button btn) {
 		return;
 	}
 
-	if (is_page_selected) {
-		if (btn == BTN_RIGHT) {
-			audio_increase(active_page);
-		} else if (btn == BTN_LEFT) {
-			audio_decrease(active_page);
-		}
+	if (btn == BTN_RIGHT) {
+		audio_increase(active_page);
+	} else if (btn == BTN_LEFT) {
+		audio_decrease(active_page);
+	}
 
-		if (btn != BTN_MIDDLE) {
-			show_page(active_page);
-		}
+	if (btn == BTN_RIGHT || btn == BTN_LEFT) {
+		show_page(active_page);
 	}
 }
 
@@ -265,14 +251,13 @@ void ui_task(void) {
 	last_ms = curr_ms;
 
 	update_button(BTN_USR_L_GPIO_Port, BTN_USR_L_Pin, BTN_LEFT, curr_ms);
-	update_button(BTN_USR_M_GPIO_Port, BTN_USR_M_Pin, BTN_MIDDLE, curr_ms);
 	update_button(BTN_USR_R_GPIO_Port, BTN_USR_R_Pin, BTN_RIGHT, curr_ms);
+	update_button(BTN_USR_UP_GPIO_Port, BTN_USR_UP_Pin, BTN_UP, curr_ms);
+	update_button(BTN_USR_DN_GPIO_Port, BTN_USR_DN_Pin, BTN_DN, curr_ms);
 
 	if (isScreenTimeout(curr_ms)) {
-
 		if (SSD1306_IsOn()) {
 			SSD1306_PowerOff();
-			is_page_selected = false;
 		}
 	}
 }
