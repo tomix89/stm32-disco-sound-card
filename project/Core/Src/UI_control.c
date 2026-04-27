@@ -131,68 +131,60 @@ static void show_page(UiPage page) {
 
 	switch (page) {
 	case PAGE_BASS:
-		SSD1306_GotoXY(1, 0);
-		SSD1306_Puts("Bass", &Font_11x18, SSD1306_PX_CLR_WHITE);
-		SSD1306_GotoXY(0, 20);
-		SSD1306_Puts(" gain", &Font_7x10, SSD1306_PX_CLR_WHITE);
+		SSD1306_GotoXY(16, 0);
+		SSD1306_Puts("Bass gain", &Font_11x18, SSD1306_PX_CLR_WHITE);
 
-		SSD1306_GotoXY(50, 7);
+		SSD1306_GotoXY(14, 37);
 		get_audio_value_str(AUDIO_CONTROL_BASS, &string_ptr);
-		SSD1306_Puts(string_ptr, &Font_11x18, SSD1306_PX_CLR_WHITE);
+		SSD1306_Puts(string_ptr, &Font_16x26, SSD1306_PX_CLR_WHITE);
 		break;
 
 	case PAGE_TREBLE:
-		SSD1306_GotoXY(1, 0);
-		SSD1306_Puts("Treb", &Font_11x18, SSD1306_PX_CLR_WHITE);
-		SSD1306_GotoXY(0, 20);
-		SSD1306_Puts(" gain", &Font_7x10, SSD1306_PX_CLR_WHITE);
+		SSD1306_GotoXY(16, 0);
+		SSD1306_Puts("Treb gain", &Font_11x18, SSD1306_PX_CLR_WHITE);
 
-		SSD1306_GotoXY(50, 7);
+		SSD1306_GotoXY(14, 37);
 		get_audio_value_str(AUDIO_CONTROL_TREB, &string_ptr);
-		SSD1306_Puts(string_ptr, &Font_11x18, SSD1306_PX_CLR_WHITE);
+		SSD1306_Puts(string_ptr, &Font_16x26, SSD1306_PX_CLR_WHITE);
 		break;
 
 	case PAGE_BASS_FREQ:
-		SSD1306_GotoXY(1, 0);
-		SSD1306_Puts("Bass", &Font_11x18, SSD1306_PX_CLR_WHITE);
-		SSD1306_GotoXY(0, 20);
-		SSD1306_Puts(" freq", &Font_7x10, SSD1306_PX_CLR_WHITE);
+		SSD1306_GotoXY(16, 0);
+		SSD1306_Puts("Bass freq.", &Font_11x18, SSD1306_PX_CLR_WHITE);
 
-		SSD1306_GotoXY(70, 7);
+		SSD1306_GotoXY(45, 37);
 		get_audio_value_str(AUDIO_CONTROL_BASS_FREQ, &string_ptr);
-		SSD1306_Puts(string_ptr, &Font_11x18, SSD1306_PX_CLR_WHITE);
+		SSD1306_Puts(string_ptr, &Font_16x26, SSD1306_PX_CLR_WHITE);
 		break;
 
 	case PAGE_TREBLE_FREQ:
-		SSD1306_GotoXY(1, 0);
-		SSD1306_Puts("Treb", &Font_11x18, SSD1306_PX_CLR_WHITE);
-		SSD1306_GotoXY(0, 20);
-		SSD1306_Puts(" freq", &Font_7x10, SSD1306_PX_CLR_WHITE);
+		SSD1306_GotoXY(16, 0);
+		SSD1306_Puts("Treb freq.", &Font_11x18, SSD1306_PX_CLR_WHITE);
 
-		SSD1306_GotoXY(70, 7);
+		SSD1306_GotoXY(45, 37);
 		get_audio_value_str(AUDIO_CONTROL_TREB_FREQ, &string_ptr);
-		SSD1306_Puts(string_ptr, &Font_11x18, SSD1306_PX_CLR_WHITE);
+		SSD1306_Puts(string_ptr, &Font_16x26, SSD1306_PX_CLR_WHITE);
 		break;
 
 	case PAGE_BALANCE:
-		SSD1306_GotoXY(1, 0);
-		SSD1306_Puts("Blnc", &Font_11x18, SSD1306_PX_CLR_WHITE);
+		SSD1306_GotoXY(25, 0);
+		SSD1306_Puts("Balance", &Font_11x18, SSD1306_PX_CLR_WHITE);
 
 		int16_t blnc_val = get_audio_value(AUDIO_CONTROL_BALANCE);
 		if (blnc_val == 0) {
-			SSD1306_GotoXY(10, 20);
+			SSD1306_GotoXY(55, 20);
 			SSD1306_Puts("L=R", &Font_7x10, SSD1306_PX_CLR_WHITE);
 		} else if (blnc_val > 0) {
-			SSD1306_GotoXY(10, 20);
+			SSD1306_GotoXY(55, 20);
 			SSD1306_Puts("Left", &Font_7x10, SSD1306_PX_CLR_WHITE);
 		} else {
-			SSD1306_GotoXY(7, 20);
+			SSD1306_GotoXY(52, 20);
 			SSD1306_Puts("Right", &Font_7x10, SSD1306_PX_CLR_WHITE);
 		}
 
-		SSD1306_GotoXY(50, 7);
+		SSD1306_GotoXY(14, 37);
 		get_audio_value_str(AUDIO_CONTROL_BALANCE, &string_ptr);
-		SSD1306_Puts(string_ptr, &Font_11x18, SSD1306_PX_CLR_WHITE);
+		SSD1306_Puts(string_ptr, &Font_16x26, SSD1306_PX_CLR_WHITE);
 		break;
 	}
 

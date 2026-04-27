@@ -69,7 +69,7 @@ extern C
 #define SSD1306_WIDTH 128
 
 /* SSD1306 OLED height in pixels */
-#define SSD1306_HEIGHT 32
+#define SSD1306_HEIGHT 64
 
 /* Number of pages on OLED display */
 #define SSD1306_PAGES SSD1306_HEIGHT / 8
@@ -177,7 +177,7 @@ extern C
 #define SSD1306_CONTRAST_VALUE 		0x0F
 #define SSD1306_MUX_RATIO_VALUE 	0x3F
 #define SSD1306_DISP_OFFSET_VALUE 	0x00
-#define SSD1306_COM_HW_CONFIG_VALUE 0x20
+#define SSD1306_COM_HW_CONFIG_VALUE 0x12
 
 /* Column remap */
 #define SSD1306_REMAP_COL0_SEG0 0xA0
