@@ -48,13 +48,23 @@
 #define BLNC_MIN        -400  // -40.0dB
 #define BLNC_BASE_STEP     5  //   0.5dB
 
-#define TONE_FREQ_CNT	4
+#define TONE_FREQ_CNT	 4
+#define HP_ANA_GAIN_CNT	 8
 
 int16_t control_value[AUDIO_CONTROL_CNT];
 
 const char *const bass_freqs[TONE_FREQ_CNT] = { " 50Hz", "100Hz", "200Hz", "250Hz" };
-
 const char *const treb_freqs[TONE_FREQ_CNT] = { " 5kHz", " 7kHz", "10kHz", "15kHz" };
+const char *const hp_analog_gains[HP_ANA_GAIN_CNT] = {
+		"0.40dB",
+		"0.46dB",
+		"0.51dB",
+		"0.60dB",
+		"0.71dB",
+		"0.84dB",
+		"1.00dB",
+		"1.14dB"
+ };
 
 char string_buffer[8]; // for the audio values as string
 
@@ -127,6 +137,10 @@ static void update_audio_codec(AudioControl control) {
 	case AUDIO_CONTROL_VOLUME:
 	case AUDIO_CONTROL_BALANCE:
 		send_volume_with_blnc();
+		break;
+
+	case AUDIO_CONTROL_ANALOG_GAIN:
+		CS43L22_set_hp_analog_gain(control_value[AUDIO_CONTROL_ANALOG_GAIN]);
 		break;
 	}
 }
@@ -203,6 +217,13 @@ void audio_increase(AudioControl control) {
 		}
 		break;
 
+	case AUDIO_CONTROL_ANALOG_GAIN:
+		control_value[control] += 1;
+		if (control_value[control] >= HP_ANA_GAIN_CNT) {
+			control_value[control] = HP_ANA_GAIN_CNT - 1;
+		}
+		break;
+
 	default:
 		return;
 	}
@@ -235,6 +256,13 @@ void audio_decrease(AudioControl control) {
 		}
 		break;
 
+	case AUDIO_CONTROL_ANALOG_GAIN:
+		control_value[control] -= 1;
+		if (control_value[control] < 0) {
+			control_value[control] = 0;
+		}
+		break;
+
 	default:
 		return;
 	}
@@ -243,13 +271,15 @@ void audio_decrease(AudioControl control) {
 }
 
 void audio_init() {
-	control_value[AUDIO_CONTROL_VOLUME] = SYSTEM_MAX_VOLUME_DB * DIVISOR;
+	control_value[AUDIO_CONTROL_VOLUME] = (SYSTEM_MAX_VOLUME_DB - 12) * DIVISOR; // do not blast on max volume
 	control_value[AUDIO_CONTROL_BASS] = 1.5 * 4 * DIVISOR; // 1.5 step x 4 = +6dB
 	control_value[AUDIO_CONTROL_TREB] = 1.5 * 2 * DIVISOR; // 1.5 step x 2 = +3dB
 	control_value[AUDIO_CONTROL_BASS_FREQ] = 1; // 100Hz
+	control_value[AUDIO_CONTROL_ANALOG_GAIN] = 3; // 0.6047dB
 
 
 	update_audio_codec(AUDIO_CONTROL_VOLUME);
+	update_audio_codec(AUDIO_CONTROL_ANALOG_GAIN);
 	// both BASS and TREB is in a same register so they both will be updated
 	update_audio_codec(AUDIO_CONTROL_BASS);
 	update_audio_codec(AUDIO_CONTROL_BASS_FREQ);
@@ -305,6 +335,10 @@ void get_audio_value_str(AudioControl control, char **ptr) {
 	case AUDIO_CONTROL_BALANCE:
 		// this is always a negative
 		format_db(-ABS(current_value), ptr);
+		break;
+
+	case AUDIO_CONTROL_ANALOG_GAIN:
+		*ptr = hp_analog_gains[current_value];
 		break;
 
 	default:

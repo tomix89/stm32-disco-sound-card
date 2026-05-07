@@ -59,6 +59,7 @@ typedef enum {
 	PAGE_BASS_FREQ,
 	PAGE_TREBLE_FREQ,
 	PAGE_BALANCE,
+	PAGE_ANALOG_GAIN,
 
 	PAGE_CNT
 } UiPage;
@@ -71,6 +72,7 @@ _Static_assert((int)PAGE_TREBLE == (int)AUDIO_CONTROL_TREB, "UiPage must be in s
 _Static_assert((int)PAGE_BASS_FREQ == (int)AUDIO_CONTROL_BASS_FREQ, "UiPage must be in sync with AudioControl");
 _Static_assert((int)PAGE_TREBLE_FREQ == (int)AUDIO_CONTROL_TREB_FREQ, "UiPage must be in sync with AudioControl");
 _Static_assert((int)PAGE_BALANCE == (int)AUDIO_CONTROL_BALANCE, "UiPage must be in sync with AudioControl");
+_Static_assert((int)PAGE_ANALOG_GAIN == (int)AUDIO_CONTROL_ANALOG_GAIN, "UiPage must be in sync with AudioControl");
 
 
 static void key_pressed(Button btn);
@@ -186,6 +188,15 @@ static void show_page(UiPage page) {
 		get_audio_value_str(AUDIO_CONTROL_BALANCE, &string_ptr);
 		SSD1306_Puts(string_ptr, &Font_16x26, SSD1306_PX_CLR_WHITE);
 		break;
+
+	case PAGE_ANALOG_GAIN:
+			SSD1306_GotoXY(2, 0);
+			SSD1306_Puts("Analog gain", &Font_11x18, SSD1306_PX_CLR_WHITE);
+
+			SSD1306_GotoXY(30, 37);
+			get_audio_value_str(AUDIO_CONTROL_ANALOG_GAIN, &string_ptr);
+			SSD1306_Puts(string_ptr, &Font_16x26, SSD1306_PX_CLR_WHITE);
+			break;
 	}
 
 	SSD1306_UpdateScreen();

@@ -52,5 +52,7 @@ int CS43L22_set_bass_treb_gain(uint8_t bass, uint8_t treb);
 // both needs to be set in the same register
 int CS43L22_set_bass_treb_freq(uint8_t bass_id, uint8_t treb_id);
 
+int CS43L22_set_hp_analog_gain(uint8_t gain_id);
+
 int CS43L22_read_clip_reg();
 

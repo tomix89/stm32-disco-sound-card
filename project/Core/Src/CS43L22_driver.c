@@ -193,6 +193,16 @@ int CS43L22_set_hp_volume_db(int16_t vol_L, int16_t vol_R) {
   return success != 0;
 }
 
+int CS43L22_set_hp_analog_gain(uint8_t gain_id) {
+	  uint8_t success = 0;
+	  uint8_t value = (gain_id << 5);
+	  // all the other registers are default 0
+
+	  success += codec_i2c_write_reg(CS43L22_REG_PLAYBACK_CTL1, value);
+
+	  return success != 0;
+}
+
 int CS43L22_set_hp_mute(int8_t mute) {
 	  uint8_t value = mute > 0 ? 0b11000000 : 0b00000000;
 	  uint8_t success = 0;
