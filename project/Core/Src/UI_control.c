@@ -54,7 +54,8 @@ typedef struct {
 static ButtonState btn_state[BTN_COUNT];
 
 typedef enum {
-	PAGE_BASS = 0,
+	PAGE_VOLUME= 0,
+	PAGE_BASS,
 	PAGE_TREBLE,
 	PAGE_BASS_FREQ,
 	PAGE_TREBLE_FREQ,
@@ -67,6 +68,7 @@ static UiPage active_page = PAGE_BASS;
 
 // UiPage has to be in sync with "audio_controls.h" AudioControl
 // other ways it needs mapping between the 2
+_Static_assert((int)PAGE_VOLUME == (int)AUDIO_CONTROL_VOLUME, "UiPage must be in sync with AudioControl");
 _Static_assert((int)PAGE_BASS == (int)AUDIO_CONTROL_BASS, "UiPage must be in sync with AudioControl");
 _Static_assert((int)PAGE_TREBLE == (int)AUDIO_CONTROL_TREB, "UiPage must be in sync with AudioControl");
 _Static_assert((int)PAGE_BASS_FREQ == (int)AUDIO_CONTROL_BASS_FREQ, "UiPage must be in sync with AudioControl");
@@ -197,6 +199,15 @@ static void show_page(UiPage page) {
 			get_audio_value_str(AUDIO_CONTROL_ANALOG_GAIN, &string_ptr);
 			SSD1306_Puts(string_ptr, &Font_16x26, SSD1306_PX_CLR_WHITE);
 			break;
+
+	case PAGE_VOLUME:
+			SSD1306_GotoXY(34, 0);
+			SSD1306_Puts("Volume", &Font_11x18, SSD1306_PX_CLR_WHITE);
+
+			SSD1306_GotoXY(14, 37);
+			get_audio_value_str(AUDIO_CONTROL_VOLUME, &string_ptr);
+			SSD1306_Puts(string_ptr, &Font_16x26, SSD1306_PX_CLR_WHITE);
+			break;
 	}
 
 	SSD1306_UpdateScreen();
@@ -257,6 +268,13 @@ void ui_task(void) {
 	update_button(BTN_USR_R_GPIO_Port, BTN_USR_R_Pin, BTN_RIGHT, curr_ms);
 	update_button(BTN_USR_UP_GPIO_Port, BTN_USR_UP_Pin, BTN_UP, curr_ms);
 	update_button(BTN_USR_DN_GPIO_Port, BTN_USR_DN_Pin, BTN_DN, curr_ms);
+
+	// setting volume from HW takes some time and has to be processed like an event
+	if (SSD1306_IsOn() && active_page == PAGE_VOLUME) {
+		if (is_volume_screen_request__pop()) {
+			show_page(PAGE_VOLUME);
+		}
+	}
 
 	if (isScreenTimeout(curr_ms)) {
 		if (SSD1306_IsOn()) {

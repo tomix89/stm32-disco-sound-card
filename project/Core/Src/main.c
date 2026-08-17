@@ -182,11 +182,9 @@ int main(void)
 	  led_blinking_task();
 	  ui_task();
 
-#if CFG_AUDIO_DEBUG
-	  audio_debug_task();
-#endif
+	  audio_multimedia_keys_task();
 
-	 audio_task();
+	  audio_task();
   }
   /* USER CODE END 3 */
 }

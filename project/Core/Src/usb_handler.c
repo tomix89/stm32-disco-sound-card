@@ -59,9 +59,6 @@ static uint32_t blink_interval_ms = BLINK_NOT_MOUNTED;
 
 #if CFG_AUDIO_DEBUG
 void audio_debug_task(void);
-uint8_t current_alt_settings;
-volatile uint16_t fifo_count;
-volatile uint32_t fifo_count_avg;
 #endif
 
 //--------------------------------------------------------------------+
@@ -232,7 +229,7 @@ static bool audio10_get_req_entity(uint8_t rhport, tusb_control_request_t const 
           case AUDIO10_CS_REQ_GET_CUR:
           	{
         	  int16_t volume_pct = audio_get_volume_usb_pct();
-        	  printf("    Get Volume of channel: %u, %u\r\n", channelNum, volume_pct);
+        	  printf("    Get Volume of channel: %u -> %u\r\n", channelNum, volume_pct);
               return tud_audio_buffer_and_schedule_control_xfer(rhport, p_request, &volume_pct, sizeof(volume_pct));
             }
 
@@ -432,10 +429,6 @@ bool tud_audio_set_itf_cb(uint8_t rhport, tusb_control_request_t const *p_reques
   if (ITF_NUM_AUDIO_STREAMING == itf && alt != 0)
     blink_interval_ms = BLINK_STREAMING;
 
-#if CFG_AUDIO_DEBUG
-  current_alt_settings = alt;
-#endif
-
   return true;
 }
 
@@ -552,12 +545,6 @@ bool tud_audio_rx_done_isr(uint8_t rhport, uint16_t n_bytes_received, uint8_t fu
     }
   }
 
-#if CFG_AUDIO_DEBUG
-  fifo_count = tud_audio_available();
-  // Same averaging method used in UAC2 class
-  fifo_count_avg = (uint32_t) (((uint64_t) fifo_count_avg * 63 + ((uint32_t) fifo_count << 16)) >> 6);
-#endif
-
   return true;
 }
 
@@ -602,39 +589,77 @@ void led_blinking_task(void) {
   led_state = 1 - led_state;
 }
 
-#if CFG_AUDIO_DEBUG
+
 //--------------------------------------------------------------------+
-// HID interface for audio debug
+// HID interface for controlling volume from HW side
 //--------------------------------------------------------------------+
-// Every 1ms, we will sent 1 debug information report
-void audio_debug_task(void) {
+
+// from tinyusb\examples\device\hid_composite\src\main.c
+void send_hid_report(uint8_t report_id) {
+  // skip if hid is not ready yet
+  if (!tud_hid_ready()) {
+    return;
+  }
+
+  if (report_id == REPORT_ID_CONSUMER_CONTROL) {
+    // use to avoid send multiple consecutive zero report
+    static bool has_consumer_key = false;
+
+    int8_t volume_request = is_volume_key_request__pop();
+    if (volume_request != 0) {
+      uint16_t consumer_control_code = volume_request > 0
+    		     ? HID_USAGE_CONSUMER_VOLUME_INCREMENT
+    			 : HID_USAGE_CONSUMER_VOLUME_DECREMENT;
+      tud_hid_report(REPORT_ID_CONSUMER_CONTROL, & consumer_control_code, 2);
+
+      has_consumer_key = true;
+    } else {
+      // send empty key report (release key) if previously has key pressed
+      uint16_t empty_key = 0;
+      if (has_consumer_key) {
+        tud_hid_report(REPORT_ID_CONSUMER_CONTROL, & empty_key, 2);
+      }
+      has_consumer_key = false;
+    }
+  }
+}
+
+// Every 10ms, we will sent 1 report for each HID profile (keyboard, mouse etc ..)
+// tud_hid_report_complete_cb() is used to send the next report after previous one is complete
+void audio_multimedia_keys_task(void) {
+  const uint32_t interval_ms = 10;
   static uint32_t start_ms = 0;
   uint32_t curr_ms = HAL_GetTick();
-  if (start_ms == curr_ms) return;// not enough time
-  start_ms = curr_ms;
+  if (curr_ms - start_ms < interval_ms) {
+    return; // not enough time
+  }
+  start_ms += interval_ms;
 
-  audio_debug_info_t debug_info;
-  debug_info.sample_rate = AUDIO_SAMPLING_RATE;
-  debug_info.alt_settings = current_alt_settings;
-  debug_info.fifo_size = CFG_TUD_AUDIO_FUNC_1_EP_OUT_SW_BUF_SZ;
-  debug_info.fifo_count = fifo_count;
-  debug_info.fifo_count_avg = (uint16_t) (fifo_count_avg >> 16);
-  debug_info.mute = audio_get_mute();
-  debug_info.volume = audio_get_volume_usb_pct();
+  if (!tud_suspended()) {
+    // Send the 1st of report chain, the rest will be sent by tud_hid_report_complete_cb()
+    send_hid_report(REPORT_ID_CONSUMER_CONTROL);
+  }
+}
 
-  if (tud_hid_ready())
-    tud_hid_report(0, &debug_info, sizeof(debug_info));
+// Invoked when sent REPORT successfully to host
+// Application can use this to send the next report
+// Note: For composite reports, report[0] is report ID
+void tud_hid_report_complete_cb(uint8_t instance, uint8_t const *report, uint16_t len) {
+  (void)instance;
+  (void)len;
+
+  // we don't need this since we have only REPORT_ID_CONSUMER_CONTROL
 }
 
 // Invoked when received GET_REPORT control request
 // Unused here
 uint16_t tud_hid_get_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t report_type, uint8_t *buffer, uint16_t reqlen) {
   // TODO not Implemented
-  (void) itf;
-  (void) report_id;
-  (void) report_type;
-  (void) buffer;
-  (void) reqlen;
+  (void)itf;
+  (void)report_id;
+  (void)report_type;
+  (void)buffer;
+  (void)reqlen;
 
   return 0;
 }
@@ -649,8 +674,6 @@ void tud_hid_set_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t rep
   (void) buffer;
   (void) bufsize;
 }
-
-#endif
 
 //--------------------------------------------------------------------------------------------------------------
 //----------------------------------------------used by tinyUSB board_api.h-------------------------------------

@@ -28,16 +28,15 @@
 #include <stdint.h>
 
 typedef enum {
-	AUDIO_CONTROL_BASS = 0,
+	AUDIO_CONTROL_VOLUME = 0, 	// this have it's screen but is controlled by USB e.g. slave sends multimedia key VOL_UP/VOL_DN and host sets the volume
+	AUDIO_CONTROL_BASS,
 	AUDIO_CONTROL_TREB,
 	AUDIO_CONTROL_BASS_FREQ,
 	AUDIO_CONTROL_TREB_FREQ,
 	AUDIO_CONTROL_BALANCE,
 	AUDIO_CONTROL_ANALOG_GAIN,
 
-	// for now these are controlled only from USB
-	AUDIO_CONTROL_VOLUME,
-	AUDIO_CONTROL_MUTE,
+	AUDIO_CONTROL_MUTE, // this is controlled explicitly from USB and has no explicit UI page
 
 	AUDIO_CONTROL_CNT
 } AudioControl;
@@ -51,6 +50,10 @@ int16_t audio_get_volume_usb_pct(void);
 // call to get/set an absolute value to the mute
 void audio_set_mute(int8_t mute);
 int8_t audio_get_mute(void);
+
+// call to check if volume change is requested
+extern inline int8_t is_volume_key_request__pop(void);
+extern inline int8_t is_volume_screen_request__pop(void);
 
 
 // call to increase the given audio control by 1 step

@@ -29,4 +29,4 @@ SOFTWARE.
 
 void led_blinking_task(void);
 void audio_task(void);
-void audio_debug_task(void);
+void audio_multimedia_keys_task(void);

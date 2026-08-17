@@ -30,23 +30,8 @@ enum
 {
   ITF_NUM_AUDIO_CONTROL = 0,
   ITF_NUM_AUDIO_STREAMING,
-#if CFG_AUDIO_DEBUG
-  ITF_NUM_DEBUG,
-#endif
+  ITF_NUM_MULTIMEDIA_KEYS,
   ITF_NUM_TOTAL
 };
-
-#if CFG_AUDIO_DEBUG
-typedef struct
-  {
-    uint32_t sample_rate;
-    uint8_t alt_settings;
-    uint8_t mute;
-    int16_t volume;
-    uint16_t fifo_size;
-    uint16_t fifo_count;
-    uint16_t fifo_count_avg;
-  } audio_debug_info_t;
-#endif
 
 #endif

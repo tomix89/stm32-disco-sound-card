@@ -53,6 +53,22 @@
 
 int16_t control_value[AUDIO_CONTROL_CNT];
 
+typedef struct {
+	// volume has to go through the OS in control
+	// we only send mulimedia VOL_UP/VOL_DN to the OS
+	// which then in return sets the volume through UAC1 control
+	// +1 is VOL_UP, -1 is VOL_DN
+	//
+	// this is set by the HW buttons
+	int8_t hw_key_pressed;
+
+
+	// we also need a flag to update the screen correctly after sending the volume request
+	// since it needs to go through the USB -> PC OS -> USB it's far from instant
+	int8_t screen_update_request;
+} VolKeyStatus_t;
+static VolKeyStatus_t volKeyStatus;
+
 const char *const bass_freqs[TONE_FREQ_CNT] = { " 50Hz", "100Hz", "200Hz", "250Hz" };
 const char *const treb_freqs[TONE_FREQ_CNT] = { " 5kHz", " 7kHz", "10kHz", "15kHz" };
 const char *const hp_analog_gains[HP_ANA_GAIN_CNT] = {
@@ -166,10 +182,23 @@ void audio_set_volume_usb_pct(int16_t volume_pct) {
 	control_value[AUDIO_CONTROL_VOLUME] = vol_usb_pct_to_db_div(volume_pct);
 	printf("volume is: %d\n", control_value[AUDIO_CONTROL_VOLUME]);
 	update_audio_codec(AUDIO_CONTROL_VOLUME);
+	volKeyStatus.screen_update_request = 1;
 }
 
 int16_t audio_get_volume_usb_pct(void) {
 	return vol_db_div_to_usb_pct(control_value[AUDIO_CONTROL_VOLUME]);
+}
+
+inline int8_t is_volume_key_request__pop(void) {
+	int8_t value = volKeyStatus.hw_key_pressed;
+	volKeyStatus.hw_key_pressed = 0;
+	return value;
+}
+
+inline int8_t is_volume_screen_request__pop(void) {
+	int8_t value = volKeyStatus.screen_update_request;
+	volKeyStatus.screen_update_request = 0;
+	return value;
 }
 
 void audio_set_mute(int8_t mute) {
@@ -224,11 +253,17 @@ void audio_increase(AudioControl control) {
 		}
 		break;
 
+	case AUDIO_CONTROL_VOLUME:
+		volKeyStatus.hw_key_pressed = 1;
+		break;
+
 	default:
 		return;
 	}
 
-	update_audio_codec(control);
+	if (control != AUDIO_CONTROL_VOLUME) {
+		update_audio_codec(control);
+	}
 }
 
 void audio_decrease(AudioControl control) {
@@ -263,17 +298,23 @@ void audio_decrease(AudioControl control) {
 		}
 		break;
 
+	case AUDIO_CONTROL_VOLUME:
+		volKeyStatus.hw_key_pressed = -1;
+		break;
+
 	default:
 		return;
 	}
 
-	update_audio_codec(control);
+	if (control != AUDIO_CONTROL_VOLUME) {
+		update_audio_codec(control);
+	}
 }
 
 void audio_init() {
-	control_value[AUDIO_CONTROL_VOLUME] = (SYSTEM_MAX_VOLUME_DB - 12) * DIVISOR; // do not blast on max volume
-	control_value[AUDIO_CONTROL_BASS] = 1.5 * 4 * DIVISOR; // 1.5 step x 4 = +6dB
-	control_value[AUDIO_CONTROL_TREB] = 1.5 * 2 * DIVISOR; // 1.5 step x 2 = +3dB
+	control_value[AUDIO_CONTROL_VOLUME] = (SYSTEM_MAX_VOLUME_DB - 20) * DIVISOR; // do not blast on max volume
+	control_value[AUDIO_CONTROL_BASS] = 1.5 * 4 * DIVISOR; // 1.5 step x 4 = +6.0dB
+	control_value[AUDIO_CONTROL_TREB] = 1.5 * 3 * DIVISOR; // 1.5 step x 3 = +4.5dB
 	control_value[AUDIO_CONTROL_BASS_FREQ] = 1; // 100Hz
 	control_value[AUDIO_CONTROL_ANALOG_GAIN] = 3; // 0.6047dB
 
@@ -339,6 +380,10 @@ void get_audio_value_str(AudioControl control, char **ptr) {
 
 	case AUDIO_CONTROL_ANALOG_GAIN:
 		*ptr = hp_analog_gains[current_value];
+		break;
+
+	case AUDIO_CONTROL_VOLUME:
+		format_db(current_value, ptr);
 		break;
 
 	default:
