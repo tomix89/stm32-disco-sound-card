@@ -36,6 +36,8 @@
 #include "CS43L22_driver.h"
 #include "audio_controls.h"
 
+#include "os_fingerprinter.h"
+
 //--------------------------------------------------------------------+
 // MACRO CONSTANT TYPEDEF PROTOTYPES
 //--------------------------------------------------------------------+
@@ -99,6 +101,8 @@ void tud_resume_cb(void) {
 static bool audio10_set_req_ep(tusb_control_request_t const *p_request, uint8_t *pBuff) {
   uint8_t ctrlSel = TU_U16_HIGH(p_request->wValue);
 
+  log_usb_command(USB_ACTION_EP, ctrlSel, p_request->bRequest);
+
   switch (ctrlSel) {
     case AUDIO10_EP_CTRL_SAMPLING_FREQ:
       if (p_request->bRequest == AUDIO10_CS_REQ_SET_CUR) {
@@ -108,11 +112,11 @@ static bool audio10_set_req_ep(tusb_control_request_t const *p_request, uint8_t 
         uint32_t current_sample_rate = tu_unaligned_read32(pBuff) & 0x00FFFFFF;
 
         if (current_sample_rate != AUDIO_SAMPLING_RATE) {
-        	TU_LOG2("Setting sample rate %lu is not supported\n", current_sample_rate);
+        	printf("Setting sample rate %lu is not supported\n", current_sample_rate);
         	Error_Handler();
         }
 
-        TU_LOG2("EP set current freq: %" PRIu32 "\r\n", current_sample_rate);
+        printf("EP set current freq: %" PRIu32 "\r\n", current_sample_rate);
         return true;
       }
       break;
@@ -129,10 +133,12 @@ static bool audio10_set_req_ep(tusb_control_request_t const *p_request, uint8_t 
 static bool audio10_get_req_ep(uint8_t rhport, tusb_control_request_t const *p_request) {
   uint8_t ctrlSel = TU_U16_HIGH(p_request->wValue);
 
+  log_usb_command(USB_ACTION_EP, ctrlSel, p_request->bRequest);
+
   switch (ctrlSel) {
     case AUDIO10_EP_CTRL_SAMPLING_FREQ:
       if (p_request->bRequest == AUDIO10_CS_REQ_GET_CUR) {
-        TU_LOG2("EP get current freq\r\n");
+    	printf("EP get current freq\r\n");
 
         uint8_t freq[3];
         freq[0] = (uint8_t) (AUDIO_SAMPLING_RATE & 0xFF);
@@ -158,6 +164,8 @@ static bool audio10_set_req_entity(tusb_control_request_t const *p_request, uint
 
   // If request is for our feature unit
   if (entityID == UAC1_ENTITY_FEATURE_UNIT) {
+	log_usb_command(USB_ACTION_ENTT, ctrlSel, p_request->bRequest);
+
     switch (ctrlSel) {
       case AUDIO10_FU_CTRL_MUTE:
         switch (p_request->bRequest) {
@@ -214,13 +222,15 @@ static bool audio10_get_req_entity(uint8_t rhport, tusb_control_request_t const 
 
   // If request is for our feature unit
   if (entityID == UAC1_ENTITY_FEATURE_UNIT) {
+	  log_usb_command(USB_ACTION_ENTT, ctrlSel, p_request->bRequest);
+
     switch (ctrlSel) {
       case AUDIO10_FU_CTRL_MUTE:
       {
         // Audio control mute cur parameter block consists of only one byte - we thus can send it right away
         // There does not exist a range parameter block for mute
     	int8_t mute = audio_get_mute();
-    	TU_LOG2("    Get Mute of channel: %u, %u\r\n", channelNum, mute);
+    	printf("    Get Mute of channel: %u -> %u\r\n", channelNum, mute);
         return tud_audio_buffer_and_schedule_control_xfer(rhport, p_request, &mute, 1);
       }
 

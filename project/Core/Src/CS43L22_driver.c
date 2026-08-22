@@ -262,7 +262,7 @@ int CS43L22_set_master_volume_db(int16_t vol_LR) {
 	  vol_LR = MAX(vol_LR, MASTER_MIN_VOLUME_DB << 1);
 	  uint8_t success = 0;
 
-	  printf("CS43L22_m L: 0x%X R: 0x%X\n", vol_LR, vol_LR);
+	  printf("CS43L22_m  L: 0x%X R: 0x%X\n", vol_LR, vol_LR);
 
 	  // CS43L22 has a 0.5db resolution
 	  success += codec_i2c_write_reg(CS43L22_REG_MASTER_A_VOL, vol_LR);
