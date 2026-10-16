@@ -25,6 +25,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+#include "common.h"
 #include "CS43L22_driver.h"
 #include "custom_math.h"
 #include "stm32f4xx_hal.h"
@@ -183,7 +184,7 @@ int CS43L22_set_hp_volume_db(int16_t vol_L, int16_t vol_R) {
   vol_R = MAX(vol_R, HP_MIN_VOLUME_DB << 1);
   uint8_t success = 0;
 
-  printf("CS43L22_hp L: 0x%X R: 0x%X\n", vol_L, vol_R);
+  printf2("CS43L22 HP L: 0x%X R: 0x%X\n", vol_L, vol_R);
 
   // CS43L22 has a 0.5db resolution
   success += codec_i2c_write_reg(CS43L22_REG_HEADPHONE_A_VOL, vol_L);
@@ -262,7 +263,7 @@ int CS43L22_set_master_volume_db(int16_t vol_LR) {
 	  vol_LR = MAX(vol_LR, MASTER_MIN_VOLUME_DB << 1);
 	  uint8_t success = 0;
 
-	  printf("CS43L22_m  L: 0x%X R: 0x%X\n", vol_LR, vol_LR);
+	  printf2("CS43L22 MSTR  L: 0x%X R: 0x%X\n", vol_LR, vol_LR);
 
 	  // CS43L22 has a 0.5db resolution
 	  success += codec_i2c_write_reg(CS43L22_REG_MASTER_A_VOL, vol_LR);

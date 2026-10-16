@@ -25,6 +25,7 @@
  SOFTWARE.
  */
 
+#include "common.h"
 #include "audio_controls.h"
 #include "CS43L22_driver.h"
 #include "custom_math.h"
@@ -180,7 +181,7 @@ void audio_set_volume_usb_pct(int16_t volume_pct) {
 	// volume is special. HW supports -102dB +12dB/0dB range, but on USB level we map it to 0-100% range with 0.5% step
 	// internally we convert it to the dB with DIVISOR
 	control_value[AUDIO_CONTROL_VOLUME] = vol_usb_pct_to_db_div(volume_pct);
-	printf("volume is: %d\n", control_value[AUDIO_CONTROL_VOLUME]);
+	printf2("volume is: %d\n", control_value[AUDIO_CONTROL_VOLUME]);
 	update_audio_codec(AUDIO_CONTROL_VOLUME);
 	volKeyStatus.screen_update_request = 1;
 }
@@ -355,6 +356,7 @@ inline int16_t get_audio_value(AudioControl control) {
 
 void get_audio_value_str(AudioControl control, char **ptr) {
 	int16_t current_value = control_value[control];
+	printf2("current_val: %d\n", current_value);
 
 	switch (control) {
 	case AUDIO_CONTROL_BASS:
@@ -389,4 +391,11 @@ void get_audio_value_str(AudioControl control, char **ptr) {
 	default:
 		*ptr = 0;
 	}
+}
+
+void audio_set_android_mode(void) {
+	printf2("Setting android mode BGN\n");
+	control_value[AUDIO_CONTROL_VOLUME] = SYSTEM_MAX_VOLUME_DB * DIVISOR;
+	update_audio_codec(AUDIO_CONTROL_VOLUME);
+	printf2("Setting android mode END\n");
 }

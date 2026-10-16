@@ -31,6 +31,7 @@ SOFTWARE.
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "common.h"
 #include "bsp/board_api.h"
 #include "tusb.h"
 #include "common_types.h"
@@ -168,7 +169,7 @@ int main(void)
   audio_init();
   ui_init();
 
-  printf("init done\n");
+  printf2("init done\n");
   /* USER CODE END 2 */
 
   /* Infinite loop */

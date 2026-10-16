@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "common.h"
 #include "bsp/board_api.h"
 #include "common_types.h"
 #include "tusb.h"
@@ -56,6 +57,7 @@ enum {
 };
 
 static uint32_t blink_interval_ms = BLINK_NOT_MOUNTED;
+static uint8_t android_callback_sent = 0;
 
 #define AUDIO_PACKET_LEN    (AUDIO_SAMPLING_RATE / 1000 * CFG_TUD_AUDIO_FUNC_1_N_BYTES_PER_SAMPLE_RX * CFG_TUD_AUDIO_FUNC_1_N_CHANNELS_RX)
 
@@ -70,6 +72,9 @@ void audio_debug_task(void);
 // Invoked when device is mounted
 void tud_mount_cb(void) {
   blink_interval_ms = BLINK_MOUNTED;
+  fngr_reset();
+  android_callback_sent = 0;
+  printf2("mount \r\n");
 }
 
 // Invoked when device is unmounted
@@ -101,7 +106,7 @@ void tud_resume_cb(void) {
 static bool audio10_set_req_ep(tusb_control_request_t const *p_request, uint8_t *pBuff) {
   uint8_t ctrlSel = TU_U16_HIGH(p_request->wValue);
 
-  log_usb_command(USB_ACTION_EP, ctrlSel, p_request->bRequest);
+  fngr_log_usb_command(USB_ACTION_EP, ctrlSel, p_request->bRequest);
 
   switch (ctrlSel) {
     case AUDIO10_EP_CTRL_SAMPLING_FREQ:
@@ -112,11 +117,11 @@ static bool audio10_set_req_ep(tusb_control_request_t const *p_request, uint8_t 
         uint32_t current_sample_rate = tu_unaligned_read32(pBuff) & 0x00FFFFFF;
 
         if (current_sample_rate != AUDIO_SAMPLING_RATE) {
-        	printf("Setting sample rate %lu is not supported\n", current_sample_rate);
+        	printf2("Setting sample rate %lu is not supported\n", current_sample_rate);
         	Error_Handler();
         }
 
-        printf("EP set current freq: %" PRIu32 "\r\n", current_sample_rate);
+        printf2("EP set current freq: %" PRIu32 "\r\n", current_sample_rate);
         return true;
       }
       break;
@@ -133,12 +138,12 @@ static bool audio10_set_req_ep(tusb_control_request_t const *p_request, uint8_t 
 static bool audio10_get_req_ep(uint8_t rhport, tusb_control_request_t const *p_request) {
   uint8_t ctrlSel = TU_U16_HIGH(p_request->wValue);
 
-  log_usb_command(USB_ACTION_EP, ctrlSel, p_request->bRequest);
+  fngr_log_usb_command(USB_ACTION_EP, ctrlSel, p_request->bRequest);
 
   switch (ctrlSel) {
     case AUDIO10_EP_CTRL_SAMPLING_FREQ:
       if (p_request->bRequest == AUDIO10_CS_REQ_GET_CUR) {
-    	printf("EP get current freq\r\n");
+    	printf2("EP get current freq\r\n");
 
         uint8_t freq[3];
         freq[0] = (uint8_t) (AUDIO_SAMPLING_RATE & 0xFF);
@@ -164,7 +169,7 @@ static bool audio10_set_req_entity(tusb_control_request_t const *p_request, uint
 
   // If request is for our feature unit
   if (entityID == UAC1_ENTITY_FEATURE_UNIT) {
-	log_usb_command(USB_ACTION_ENTT, ctrlSel, p_request->bRequest);
+	fngr_log_usb_command(USB_ACTION_ENTT, ctrlSel, p_request->bRequest);
 
     switch (ctrlSel) {
       case AUDIO10_FU_CTRL_MUTE:
@@ -178,7 +183,7 @@ static bool audio10_set_req_entity(tusb_control_request_t const *p_request, uint
             TU_VERIFY(channelNum == 0);
             int8_t mute = pBuff[0];
             audio_set_mute(mute);
-            printf("    Set Mute: %d of channel: %u\r\n", mute, channelNum);
+            printf2("    Set Mute: %d of channel: %u\r\n", mute, channelNum);
 
             return true;
 
@@ -196,8 +201,8 @@ static bool audio10_set_req_entity(tusb_control_request_t const *p_request, uint
             // then 1,2 would be L and R - but we have disabled L/R now
             TU_VERIFY(channelNum == 0);
             int16_t volume = (int16_t)tu_unaligned_read16(pBuff);
+            printf2("    Set Volume: %d pct of channel: %u\r\n", volume, channelNum);
             audio_set_volume_usb_pct(volume);
-            printf("    Set Volume: %d pct of channel: %u\r\n", volume, channelNum);
 
             return true;
 
@@ -222,7 +227,7 @@ static bool audio10_get_req_entity(uint8_t rhport, tusb_control_request_t const 
 
   // If request is for our feature unit
   if (entityID == UAC1_ENTITY_FEATURE_UNIT) {
-	  log_usb_command(USB_ACTION_ENTT, ctrlSel, p_request->bRequest);
+	  fngr_log_usb_command(USB_ACTION_ENTT, ctrlSel, p_request->bRequest);
 
     switch (ctrlSel) {
       case AUDIO10_FU_CTRL_MUTE:
@@ -230,7 +235,7 @@ static bool audio10_get_req_entity(uint8_t rhport, tusb_control_request_t const 
         // Audio control mute cur parameter block consists of only one byte - we thus can send it right away
         // There does not exist a range parameter block for mute
     	int8_t mute = audio_get_mute();
-    	printf("    Get Mute of channel: %u -> %u\r\n", channelNum, mute);
+    	printf2("    Get Mute of channel: %u -> %u\r\n", channelNum, mute);
         return tud_audio_buffer_and_schedule_control_xfer(rhport, p_request, &mute, 1);
       }
 
@@ -239,7 +244,7 @@ static bool audio10_get_req_entity(uint8_t rhport, tusb_control_request_t const 
           case AUDIO10_CS_REQ_GET_CUR:
           	{
         	  int16_t volume_pct = audio_get_volume_usb_pct();
-        	  printf("    Get Volume of channel: %u -> %u\r\n", channelNum, volume_pct);
+        	  printf2("    Get Volume of channel: %u -> %u\r\n", channelNum, volume_pct);
               return tud_audio_buffer_and_schedule_control_xfer(rhport, p_request, &volume_pct, sizeof(volume_pct));
             }
 
@@ -260,7 +265,7 @@ static bool audio10_get_req_entity(uint8_t rhport, tusb_control_request_t const 
           case AUDIO10_CS_REQ_GET_RES:
             {
               int16_t step = USB_VOLUME_STEP;
-        	  printf("    Get Volume STEP of channel: %u -> %d\r\n", channelNum, step);
+        	  printf2("    Get Volume STEP of channel: %u -> %d\r\n", channelNum, step);
               return tud_audio_buffer_and_schedule_control_xfer(rhport, p_request, &step, sizeof(step));
             }
             // Unknown/Unsupported control
@@ -568,8 +573,12 @@ void audio_task(void) {
   if (last_ms == curr_ms) return; // not enough time
   last_ms = curr_ms;
 
-
   const uint16_t available = tud_audio_available();
+
+  if (!android_callback_sent && fngr_is_android()) {
+    android_callback_sent = 1;
+    audio_set_android_mode();
+  }
 
   if (blink_interval_ms == BLINK_STREAMING) {
 	  // start audio only when the stream is active

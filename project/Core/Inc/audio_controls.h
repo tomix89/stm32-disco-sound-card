@@ -44,6 +44,8 @@ typedef enum {
 // sends all tone related settings to the codec
 void audio_init();
 
+void audio_set_android_mode(void);
+
 // call to get/set an absolute value to the volume
 void audio_set_volume_usb_pct(int16_t volume_pct);
 int16_t audio_get_volume_usb_pct(void);

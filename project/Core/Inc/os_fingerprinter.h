@@ -32,5 +32,7 @@ typedef enum {
 	USB_ACTION_ENTT,
 } UsbActionType_t;
 
-void log_usb_command(UsbActionType_t type, uint8_t feature, uint8_t request);
+void fngr_log_usb_command(UsbActionType_t type, uint8_t feature, uint8_t request);
+void fngr_reset();
+extern inline uint8_t fngr_is_android();
 
